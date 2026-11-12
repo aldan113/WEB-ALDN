@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Permainan Papan BINGO Klasik</title>
-    <!-- Tailwind CSS CDN aldn-->
+    <!-- Tailwind CSS CDN fita-->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -80,7 +80,7 @@
                 <i class="fa-solid fa-bullseye"></i>
             </div>
             <h1 class="text-2xl font-black bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-                BINGO KLASIK 75
+                BINGO KLASIK 756
             </h1>
             <p class="text-xs text-slate-400 mt-1">Silakan masuk untuk mulai bermain atau menonton</p>
         </div>
@@ -118,7 +118,54 @@
         </div>
     </div>
 
-    <!-- View 2: Header & Main Game UI (Hidden initially until logged in) -->
+    <!-- View 2: Admin Lobby (Ruang Tunggu Admin & Pemain) -->
+    <div id="admin-lobby" class="hidden max-w-xl mx-auto w-full my-auto bg-slate-900/80 backdrop-blur-xl p-6 md:p-8 rounded-3xl border border-slate-700/60 shadow-2xl relative z-20 flex-col gap-5">
+        <div class="flex justify-between items-center pb-4 border-b border-slate-700/60">
+            <div>
+                <h2 class="text-xl font-black text-amber-400 flex items-center gap-2">
+                    <i class="fa-solid fa-users-viewfinder text-2xl"></i> Ruang Tunggu Permainan (Lobby)
+                </h2>
+                <p class="text-xs text-slate-400 mt-0.5">Menunggu pemain bergabung sebelum permainan dimulai...</p>
+            </div>
+            <button onclick="logout()" class="px-3 py-1.5 bg-slate-800 hover:bg-rose-900/40 border border-slate-700 text-slate-300 text-xs rounded-xl">
+                Keluar
+            </button>
+        </div>
+
+        <div>
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    <i class="fa-solid fa-user-check text-emerald-400"></i> Pemain yang Terhubung:
+                </span>
+                <span id="connected-count-badge" class="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full text-xs font-black">0 Pemain</span>
+            </div>
+
+            <div id="lobby-player-list" class="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 min-h-[140px] max-h-[220px] overflow-y-auto space-y-2 text-sm">
+                <div class="text-xs text-slate-500 italic text-center py-8">Belum ada pemain yang masuk...</div>
+            </div>
+        </div>
+
+        <div class="pt-2">
+            <button id="btn-start-game" onclick="adminStartGame()" 
+                class="w-full py-3.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-indigo-600 hover:from-emerald-600 hover:to-indigo-700 text-white font-black rounded-xl text-base shadow-xl shadow-emerald-500/20 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-play"></i> Mulai Permainan Sekarang
+            </button>
+        </div>
+    </div>
+
+    <!-- View 3: Player / Spectator Waiting Screen -->
+    <div id="player-waiting-screen" class="hidden max-w-md mx-auto w-full my-auto bg-slate-900/80 backdrop-blur-xl p-8 rounded-3xl border border-slate-700/60 shadow-2xl text-center flex-col items-center justify-center relative z-20">
+        <div class="w-16 h-16 bg-gradient-to-tr from-amber-400 to-indigo-500 rounded-2xl flex items-center justify-center text-slate-950 text-3xl font-black mb-4 animate-bounce">
+            <i class="fa-solid fa-clock"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-white mb-1">Menunggu Admin...</h2>
+        <p class="text-xs text-slate-400 mb-4">Anda telah berada di ruang tunggu. Permainan akan terbuka otomatis saat Admin menekan "Mulai".</p>
+        <div class="px-4 py-2 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-semibold">
+            Status: Siap Bermain
+        </div>
+    </div>
+
+    <!-- View 4: Header & Main Game UI (Hidden initially until started) -->
     <div id="game-wrapper" class="hidden flex-col min-h-screen justify-between w-full">
 
         <!-- Header & Navigation -->
@@ -129,7 +176,7 @@
                 </div>
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-                        BINGO KLASIK 75
+                        BINGO KLASIK 756
                     </h1>
                     <p class="text-xs text-slate-400 flex items-center gap-2">
                         <span>Pengguna: <strong id="logged-user-display" class="text-amber-300">Player</strong></span>
@@ -278,8 +325,49 @@
             penonton: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingopenonton.json'
         };
 
-        // --- Real-time Communication Channel (BroadcastChannel API) ---
+        // --- Dual Sync Mechanism (BroadcastChannel + LocalStorage Event) ---
         const bingoChannel = new BroadcastChannel('bingo_game_sync_channel');
+
+        function broadcastState(type, payload = {}) {
+            const data = { type, ...payload, timestamp: Date.now() };
+            try {
+                bingoChannel.postMessage(data);
+            } catch (e) {}
+            // Fallback to localStorage trigger cross-tab listener
+            localStorage.setItem('bingo_sync_event', JSON.stringify(data));
+        }
+
+        // Listen for Real-Time Sync Events
+        function handleSyncEvent(data) {
+            if (!data || !data.type) return;
+
+            if (data.type === 'PLAYER_JOINED') {
+                if (currentUser && currentUser.role === 'admin') {
+                    registerPlayerInLobby(data.username, data.displayName);
+                }
+            } else if (data.type === 'START_GAME') {
+                if (currentUser && currentUser.role !== 'admin') {
+                    openMainGameInterface();
+                }
+            } else if (data.type === 'DRAW_NUMBER') {
+                applyDrawnNumber(data.drawnNum, data.letter, data.drawnNumbersList);
+            } else if (data.type === 'CHANGE_WIN_MODE') {
+                selectedWinMode = data.winMode;
+                logMessage(`Admin mengubah mode kemenangan ke: <strong>${getWinModeLabel(selectedWinMode)}</strong>`, 'text-amber-300');
+                checkBingoProgress();
+            } else if (data.type === 'RESET_GAME') {
+                applyGameReset();
+            }
+        }
+
+        bingoChannel.onmessage = (event) => handleSyncEvent(event.data);
+        window.addEventListener('storage', (e) => {
+            if (e.key === 'bingo_sync_event' && e.newValue) {
+                try {
+                    handleSyncEvent(JSON.parse(e.newValue));
+                } catch (err) {}
+            }
+        });
 
         // Helper Fetch JSON dengan Fallback Data
         async function fetchUserData(url, fallbackRole, defaultName) {
@@ -289,13 +377,14 @@
                 const data = await response.json();
                 return Array.isArray(data) ? data : (data.users || [data]);
             } catch (e) {
-                console.warn(`Gagal mengambil data dari ${url}. Menggunakan data fallback.`);
+                console.warn(`Gagal mengambil data dari ${url}.`);
                 return null;
             }
         }
 
         // --- Game State & Auth Variables ---
         let currentUser = null;
+        let connectedPlayers = [];
         let board = Array.from({ length: 5 }, () => Array(5).fill(0));
         let markedState = Array.from({ length: 5 }, () => Array(5).fill(false));
         
@@ -308,22 +397,6 @@
 
         // Web Audio Synthesizer setup for Sound Effects
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-        // Listen for Real-Time Sync Events from Admin
-        bingoChannel.onmessage = (event) => {
-            const data = event.data;
-            if (!data) return;
-
-            if (data.type === 'DRAW_NUMBER') {
-                applyDrawnNumber(data.drawnNum, data.letter, data.drawnNumbersList);
-            } else if (data.type === 'CHANGE_WIN_MODE') {
-                selectedWinMode = data.winMode;
-                logMessage(`Admin mengubah mode kemenangan ke: <strong>${getWinModeLabel(selectedWinMode)}</strong>`, 'text-amber-300');
-                checkBingoProgress();
-            } else if (data.type === 'RESET_GAME') {
-                applyGameReset();
-            }
-        };
 
         function playSound(type) {
             if (!soundEnabled) return;
@@ -444,11 +517,75 @@
         function startSession(user) {
             currentUser = user;
             document.getElementById('login-screen').classList.add('hidden');
+
+            if (user.role === 'admin') {
+                // Admin enters Lobby View first
+                document.getElementById('admin-lobby').classList.remove('hidden');
+                document.getElementById('admin-lobby').classList.add('flex');
+            } else {
+                // Player & Spectator enter Waiting View first and notify Admin
+                document.getElementById('player-waiting-screen').classList.remove('hidden');
+                document.getElementById('player-waiting-screen').classList.add('flex');
+                
+                // Notify Admin Lobby that a new player joined
+                broadcastState('PLAYER_JOINED', {
+                    username: user.username,
+                    displayName: user.displayName || user.username
+                });
+            }
+        }
+
+        function registerPlayerInLobby(uname, dname) {
+            const displayName = dname || uname;
+            if (!connectedPlayers.some(p => p.username === uname)) {
+                connectedPlayers.push({ username: uname, displayName: displayName });
+                renderLobbyPlayers();
+            }
+        }
+
+        function renderLobbyPlayers() {
+            const container = document.getElementById('lobby-player-list');
+            const badge = document.getElementById('connected-count-badge');
+            if (!container) return;
+
+            badge.textContent = `${connectedPlayers.length} Pemain`;
+            container.innerHTML = '';
+
+            if (connectedPlayers.length === 0) {
+                container.innerHTML = '<div class="text-xs text-slate-500 italic text-center py-8">Belum ada pemain yang masuk...</div>';
+                return;
+            }
+
+            connectedPlayers.forEach((p, idx) => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center bg-slate-900 px-3 py-2 rounded-xl border border-slate-800 text-slate-200';
+                item.innerHTML = `
+                    <span class="flex items-center gap-2 font-semibold">
+                        <i class="fa-solid fa-circle-user text-indigo-400"></i> ${p.displayName}
+                    </span>
+                    <span class="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-full font-bold">Siap</span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function adminStartGame() {
+            // Broadcast START_GAME to all waiting players & spectators
+            broadcastState('START_GAME');
+            openMainGameInterface();
+        }
+
+        function openMainGameInterface() {
+            document.getElementById('admin-lobby').classList.add('hidden');
+            document.getElementById('admin-lobby').classList.remove('flex');
+            document.getElementById('player-waiting-screen').classList.add('hidden');
+            document.getElementById('player-waiting-screen').classList.remove('flex');
+
             const gameWrapper = document.getElementById('game-wrapper');
             gameWrapper.classList.remove('hidden');
             gameWrapper.classList.add('flex');
 
-            document.getElementById('logged-user-display').textContent = user.displayName || user.username || "Pengguna";
+            document.getElementById('logged-user-display').textContent = currentUser.displayName || currentUser.username || "Pengguna";
             
             const badge = document.getElementById('user-role-badge');
             const callerPanel = document.getElementById('caller-panel');
@@ -456,7 +593,7 @@
             const adminControls = document.getElementById('admin-controls');
             const adminLogPanel = document.getElementById('admin-log-panel');
 
-            if (user.role === 'admin') {
+            if (currentUser.role === 'admin') {
                 badge.textContent = 'Admin';
                 badge.className = 'px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full text-[10px] font-bold';
                 
@@ -466,7 +603,7 @@
                 adminControls.classList.remove('hidden');
                 adminLogPanel.classList.remove('hidden');
 
-            } else if (user.role === 'spectator') {
+            } else if (currentUser.role === 'spectator') {
                 badge.textContent = 'Penonton (Spectator)';
                 badge.className = 'px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-[10px] font-bold';
                 
@@ -493,8 +630,13 @@
         function logout() {
             stopAutoDraw();
             currentUser = null;
+            connectedPlayers = [];
             document.getElementById('game-wrapper').classList.add('hidden');
             document.getElementById('game-wrapper').classList.remove('flex');
+            document.getElementById('admin-lobby').classList.add('hidden');
+            document.getElementById('admin-lobby').classList.remove('flex');
+            document.getElementById('player-waiting-screen').classList.add('hidden');
+            document.getElementById('player-waiting-screen').classList.remove('flex');
             document.getElementById('login-screen').classList.remove('hidden');
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
@@ -653,9 +795,8 @@
 
             const letter = getBingoLetter(drawnNum);
 
-            // Broadcast number draw event to Players & Spectators
-            bingoChannel.postMessage({
-                type: 'DRAW_NUMBER',
+            // Broadcast number draw event to Players & Spectators via Dual-sync
+            broadcastState('DRAW_NUMBER', {
                 drawnNum: drawnNum,
                 letter: letter,
                 drawnNumbersList: [...drawnNumbers]
@@ -769,10 +910,7 @@
             logMessage(`Mode kemenangan diubah ke: <strong>${getWinModeLabel(mode)}</strong>`, 'text-amber-300');
             
             // Broadcast mode change to players
-            bingoChannel.postMessage({
-                type: 'CHANGE_WIN_MODE',
-                winMode: mode
-            });
+            broadcastState('CHANGE_WIN_MODE', { winMode: mode });
 
             checkBingoProgress();
         }
@@ -889,7 +1027,7 @@
 
         function resetGame() {
             if (currentUser && currentUser.role === 'admin') {
-                bingoChannel.postMessage({ type: 'RESET_GAME' });
+                broadcastState('RESET_GAME');
             }
             initGame();
         }
