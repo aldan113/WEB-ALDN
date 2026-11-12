@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Permainan Papan BINGO Klasik</title>
-    <!-- Tailwind CSS CDN kina-->
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -80,7 +80,7 @@
                 <i class="fa-solid fa-bullseye"></i>
             </div>
             <h1 class="text-2xl font-black bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-                BINGO KLASIK 75
+                BINGO KLASIK 754
             </h1>
             <p class="text-xs text-slate-400 mt-1">Silakan masuk untuk mulai bermain atau menonton</p>
         </div>
@@ -176,7 +176,7 @@
                 </div>
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-                        BINGO KLASIK 75
+                        BINGO KLASIK 754
                     </h1>
                     <p class="text-xs text-slate-400 flex items-center gap-2">
                         <span>Pengguna: <strong id="logged-user-display" class="text-amber-300">Player</strong></span>
@@ -317,7 +317,12 @@
 
         </main>
     <!-- JavaScript Logic -->
-    <script>
+    <script type="module">
+        // Import Firebase modules for cross-device cloud synchronization
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
         // --- URLs JSON untuk Autentikasi ---
         const JSON_URLS = {
             admin: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingoadmin.json',
@@ -325,32 +330,105 @@
             penonton: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingopenonton.json'
         };
 
-        // --- Dual Sync Mechanism (BroadcastChannel + LocalStorage Event) ---
+        // --- Firebase Cloud Sync Setup ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'bingo-classic-global-v1';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            apiKey: "AIzaSyDummyKeyForOfflineFallback",
+            authDomain: "dummy.firebaseapp.com",
+            projectId: "dummy-project"
+        };
+
+        let db, auth, cloudUser = null;
+        let isFirebaseActive = false;
+        let gameStateDocRef = null;
+        let unsubscribeGameState = null;
+
+        try {
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+            
+            const initAuth = async () => {
+                try {
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    isFirebaseActive = true;
+                    console.log("Cloud sync aktif antar perangkat!");
+                } catch (e) {
+                    console.warn("Cloud auth warning, fallback lokal:", e);
+                }
+            };
+            initAuth();
+        } catch (e) {
+            console.warn("Firebase offline mode");
+        }
+
+        // --- Dual Sync Mechanism (Cloud Firestore + BroadcastChannel Fallback) ---
         const bingoChannel = new BroadcastChannel('bingo_game_sync_channel');
 
-        function broadcastState(type, payload = {}) {
+        async function broadcastState(type, payload = {}) {
             const data = { type, ...payload, timestamp: Date.now() };
+            
+            // 1. Kirim via BroadcastChannel & LocalStorage untuk tab dalam 1 perangkat
             try {
                 bingoChannel.postMessage(data);
             } catch (e) {}
-            // Fallback to localStorage trigger cross-tab listener
             localStorage.setItem('bingo_sync_event', JSON.stringify(data));
+
+            // 2. Kirim via Cloud Firestore untuk antar perangkat berbeda
+            if (isFirebaseActive && db && auth.currentUser) {
+                try {
+                    const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'bingo_room_state');
+                    if (type === 'DRAW_NUMBER') {
+                        await setDoc(roomRef, {
+                            lastAction: 'DRAW_NUMBER',
+                            drawnNum: payload.drawnNum,
+                            letter: payload.letter,
+                            drawnNumbersList: payload.drawnNumbersList,
+                            timestamp: Date.now()
+                        }, { merge: true });
+                    } else if (type === 'START_GAME') {
+                        await setDoc(roomRef, {
+                            lastAction: 'START_GAME',
+                            timestamp: Date.now()
+                        }, { merge: true });
+                    } else if (type === 'CHANGE_WIN_MODE') {
+                        await setDoc(roomRef, {
+                            lastAction: 'CHANGE_WIN_MODE',
+                            winMode: payload.winMode,
+                            timestamp: Date.now()
+                        }, { merge: true });
+                    } else if (type === 'RESET_GAME') {
+                        await setDoc(roomRef, {
+                            lastAction: 'RESET_GAME',
+                            timestamp: Date.now()
+                        }, { merge: true });
+                    } else if (type === 'PLAYER_JOINED') {
+                        const playerRef = doc(db, 'artifacts', appId, 'public', 'data', `player_${payload.username}`);
+                        await setDoc(playerRef, {
+                            username: payload.username,
+                            displayName: payload.displayName,
+                            lastSeen: Date.now()
+                        }, { merge: true });
+                    }
+                } catch (err) {
+                    console.log("Cloud sync write error:", err);
+                }
+            }
         }
 
-        // Listen for Real-Time Sync Events
+        // Listen for Real-Time Sync Events (Local Tab)
         function handleSyncEvent(data) {
             if (!data || !data.type) return;
 
             if (data.type === 'PLAYER_JOINED') {
                 if (currentUser && currentUser.role === 'admin') {
                     registerPlayerInLobby(data.username, data.displayName);
-                    // Kirim konfirmasi balik ke pemain bahwa Admin ada di lobby
-                    broadcastState('ADMIN_PING_RESPONSE', {
-                        players: connectedPlayers
-                    });
                 }
             } else if (data.type === 'REQUEST_LOBBY_STATUS') {
-                // Saat Admin baru masuk atau merefresh, minta semua pemain yang sedang menunggu untuk lapor balik
                 if (currentUser && currentUser.role !== 'admin') {
                     broadcastState('PLAYER_JOINED', {
                         username: currentUser.username,
@@ -380,6 +458,34 @@
                 } catch (err) {}
             }
         });
+
+        // Listen Cloud Firestore for Cross-Device Sync
+        function startCloudListeners() {
+            if (!isFirebaseActive || !db) return;
+
+            // Listen room state changes (Draw, Start, Reset, WinMode)
+            const roomRef = doc(db, 'artifacts', appId, 'public', 'data', 'bingo_room_state');
+            onSnapshot(roomRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    if (data.lastAction && data.timestamp > (window.lastCloudTimestamp || 0)) {
+                        window.lastCloudTimestamp = data.timestamp;
+                        
+                        if (data.lastAction === 'DRAW_NUMBER' && currentUser && currentUser.role !== 'admin') {
+                            applyDrawnNumber(data.drawnNum, data.letter, data.drawnNumbersList);
+                        } else if (data.lastAction === 'START_GAME' && currentUser && currentUser.role !== 'admin') {
+                            openMainGameInterface();
+                        } else if (data.lastAction === 'CHANGE_WIN_MODE' && currentUser) {
+                            selectedWinMode = data.winMode;
+                            logMessage(`Admin mengubah mode kemenangan ke: <strong>${getWinModeLabel(selectedWinMode)}</strong>`, 'text-amber-300');
+                            checkBingoProgress();
+                        } else if (data.lastAction === 'RESET_GAME') {
+                            applyGameReset();
+                        }
+                    }
+                }
+            });
+        }
 
         // Helper Fetch JSON dengan Fallback Data
         async function fetchUserData(url, fallbackRole, defaultName) {
@@ -460,7 +566,7 @@
         }
 
         // Autentikasi Login Handler via External JSON
-        async function handleLogin(e) {
+        window.handleLogin = async function(e) {
             e.preventDefault();
             const userInput = document.getElementById('username').value.trim();
             const passInput = document.getElementById('password').value.trim();
@@ -505,6 +611,8 @@
                         matchedUser = { username: 'admin', displayName: 'Administrator', role: 'admin' };
                     } else if (userInput.toLowerCase() === 'player1' && passInput === '123456') {
                         matchedUser = { username: 'player1', displayName: 'Pemain 1', role: 'player' };
+                    } else if (userInput.toLowerCase() === 'player2' && passInput === '123456') {
+                        matchedUser = { username: 'player2', displayName: 'Pemain 2', role: 'player' };
                     }
                 }
 
@@ -517,54 +625,49 @@
             } catch (err) {
                 errorElem.textContent = 'Gagal menghubungkan ke server login. Periksa koneksi!';
             }
-        }
+        };
 
-        function loginAsGuest() {
+        window.loginAsGuest = function() {
             startSession({
-                username: "Penonton",
+                username: "Penonton_" + Math.floor(Math.random() * 1000),
                 role: "spectator",
                 displayName: "Penonton"
             });
-        }
+        };
 
         function startSession(user) {
             currentUser = user;
             document.getElementById('login-screen').classList.add('hidden');
 
+            startCloudListeners();
+
             if (user.role === 'admin') {
-                // Admin enters Lobby View first
                 document.getElementById('admin-lobby').classList.remove('hidden');
                 document.getElementById('admin-lobby').classList.add('flex');
                 
-                // Panggil seluruh pemain yang mungkin sudah ada di ruang tunggu
                 broadcastState('REQUEST_LOBBY_STATUS');
 
-                // Polling periodik untuk mendeteksi pemain secara kontinu
                 if (lobbyHeartbeatInterval) clearInterval(lobbyHeartbeatInterval);
                 lobbyHeartbeatInterval = setInterval(() => {
                     broadcastState('REQUEST_LOBBY_STATUS');
-                }, 2000);
+                }, 3000);
 
             } else {
-                // Player & Spectator enter Waiting View first and notify Admin
-                document.getElementById('player-waiting-screen').classList.remove('hidden');
                 document.getElementById('player-waiting-screen').classList.remove('hidden');
                 document.getElementById('player-waiting-screen').classList.add('flex');
                 
-                // Notify Admin Lobby that a new player joined
                 broadcastState('PLAYER_JOINED', {
                     username: user.username,
                     displayName: user.displayName || user.username
                 });
 
-                // Kirim sinyal berkala setiap 2 detik agar Admin selalu mendeteksi pemain ini
                 if (lobbyHeartbeatInterval) clearInterval(lobbyHeartbeatInterval);
                 lobbyHeartbeatInterval = setInterval(() => {
                     broadcastState('PLAYER_JOINED', {
                         username: user.username,
                         displayName: user.displayName || user.username
                     });
-                }, 2000);
+                }, 3000);
             }
         }
 
@@ -602,15 +705,14 @@
             });
         }
 
-        function adminStartGame() {
+        window.adminStartGame = function() {
             if (lobbyHeartbeatInterval) {
                 clearInterval(lobbyHeartbeatInterval);
                 lobbyHeartbeatInterval = null;
             }
-            // Broadcast START_GAME to all waiting players & spectators
             broadcastState('START_GAME');
             openMainGameInterface();
-        }
+        };
 
         function openMainGameInterface() {
             if (lobbyHeartbeatInterval) {
@@ -638,7 +740,6 @@
                 badge.textContent = 'Admin';
                 badge.className = 'px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full text-[10px] font-bold';
                 
-                // Admin View: Only caller machine, draw controls, and log
                 callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full";
                 playerBoardPanel.classList.add('hidden');
                 adminControls.classList.remove('hidden');
@@ -648,17 +749,15 @@
                 badge.textContent = 'Penonton (Spectator)';
                 badge.className = 'px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-[10px] font-bold';
                 
-                // Spectator View: Display drawn number & history only
                 callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full";
                 playerBoardPanel.classList.add('hidden');
                 adminControls.classList.add('hidden');
                 adminLogPanel.classList.add('hidden');
 
-            } else { // Player View
+            } else {
                 badge.textContent = 'Pemain';
                 badge.className = 'px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-[10px] font-bold';
                 
-                // Player View: Side-by-side Layout with Board right next to caller display
                 callerPanel.className = "lg:col-span-5 flex flex-col gap-4";
                 playerBoardPanel.classList.remove('hidden');
                 adminControls.classList.add('hidden');
@@ -668,7 +767,7 @@
             initGame();
         }
 
-        function logout() {
+        window.logout = function() {
             stopAutoDraw();
             currentUser = null;
             connectedPlayers = [];
@@ -681,7 +780,7 @@
             document.getElementById('login-screen').classList.remove('hidden');
             document.getElementById('username').value = '';
             document.getElementById('password').value = '';
-        }
+        };
 
         function speakDrawnNumber(letter, num) {
             const speechToggle = document.getElementById('speech-toggle');
@@ -696,7 +795,7 @@
             }
         }
 
-        function toggleSound() {
+        window.toggleSound = function() {
             soundEnabled = !soundEnabled;
             const icon = document.getElementById('sound-icon');
             const text = document.getElementById('sound-text');
@@ -707,7 +806,7 @@
                 icon.className = 'fa-solid fa-volume-xmark text-slate-500';
                 text.textContent = 'Suara: Off';
             }
-        }
+        };
 
         function getBingoLetter(num) {
             if (num <= 15) return 'B';
@@ -747,7 +846,6 @@
             board = generateClassicBoard();
             markedState = Array.from({ length: 5 }, () => Array(5).fill(false));
             
-            // Middle cell (2,2) is FREE
             markedState[2][2] = true;
 
             availableNumbersToDraw = Array.from({ length: 75 }, (_, i) => i + 1);
@@ -769,6 +867,7 @@
             markedState = Array.from({ length: 5 }, () => Array(5).fill(false));
             markedState[2][2] = true;
 
+            availableNumbersToDraw = Array.from({ length: 75 }, (_, i) => i + 1);
             document.getElementById('ball-letter').innerText = 'READY';
             document.getElementById('ball-number').innerText = '--';
             document.getElementById('drawn-history').innerHTML = '<span class="text-xs text-slate-500 italic">Belum ada angka dikocok.</span>';
@@ -814,15 +913,14 @@
             }
         }
 
-        function shuffleBoard() {
+        window.shuffleBoard = function() {
             if (drawnNumbers.length > 0) {
                 if (!confirm("Permainan sedang berlangsung. Yakin ingin mengganti susunan papan?")) return;
             }
             initGame();
-        }
+        };
 
-        // Action executed by Admin to draw numbers and broadcast to all connected clients
-        function drawNextNumber() {
+        window.drawNextNumber = function() {
             if (isGameOver) return;
             if (availableNumbersToDraw.length === 0) {
                 logMessage('Semua 75 angka telah dikeluarkan!', 'text-amber-400');
@@ -836,45 +934,50 @@
 
             const letter = getBingoLetter(drawnNum);
 
-            // Broadcast number draw event to Players & Spectators via Dual-sync
             broadcastState('DRAW_NUMBER', {
                 drawnNum: drawnNum,
                 letter: letter,
                 drawnNumbersList: [...drawnNumbers]
             });
 
-            // Update local admin UI
             applyDrawnNumber(drawnNum, letter, [...drawnNumbers]);
-        }
+        };
 
-        // Apply drawn number UI update across all roles (Admin, Player, Spectator)
         function applyDrawnNumber(drawnNum, letter, drawnList) {
             drawnNumbers = drawnList;
 
             playSound('draw');
 
             const ballElem = document.getElementById('current-ball');
-            ballElem.classList.remove('caller-ball');
-            void ballElem.offsetWidth;
-            ballElem.classList.add('caller-ball');
+            if (ballElem) {
+                ballElem.classList.remove('caller-ball');
+                void ballElem.offsetWidth;
+                ballElem.classList.add('caller-ball');
+            }
 
-            document.getElementById('ball-letter').innerText = letter;
-            document.getElementById('ball-number').innerText = drawnNum;
-            document.getElementById('drawn-count-label').innerText = `${drawnNumbers.length} / 75`;
+            const letterEl = document.getElementById('ball-letter');
+            const numEl = document.getElementById('ball-number');
+            const countEl = document.getElementById('drawn-count-label');
+
+            if (letterEl) letterEl.innerText = letter;
+            if (numEl) numEl.innerText = drawnNum;
+            if (countEl) countEl.innerText = `${drawnNumbers.length} / 75`;
 
             const historyContainer = document.getElementById('drawn-history');
-            if (drawnNumbers.length === 1) historyContainer.innerHTML = '';
+            if (historyContainer) {
+                if (drawnNumbers.length === 1) historyContainer.innerHTML = '';
 
-            const tag = document.createElement('span');
-            tag.className = 'px-2 py-1 bg-slate-800 border border-slate-700 text-amber-300 font-bold text-xs rounded-lg flex-shrink-0';
-            tag.innerText = `${letter}-${drawnNum}`;
-            historyContainer.prepend(tag);
+                const tag = document.createElement('span');
+                tag.className = 'px-2 py-1 bg-slate-800 border border-slate-700 text-amber-300 font-bold text-xs rounded-lg flex-shrink-0';
+                tag.innerText = `${letter}-${drawnNum}`;
+                historyContainer.prepend(tag);
+            }
 
             logMessage(`Nomor diputar: <strong>${letter}-${drawnNum}</strong>`, 'text-indigo-300');
             speakDrawnNumber(letter, drawnNum);
         }
 
-        function toggleAutoDraw() {
+        window.toggleAutoDraw = function() {
             if (isGameOver) return;
             if (autoDrawInterval) {
                 stopAutoDraw();
@@ -882,24 +985,25 @@
                 playSound('click');
                 startAutoDraw();
             }
-        }
+        };
 
         function startAutoDraw() {
             const icon = document.getElementById('auto-icon');
             const text = document.getElementById('auto-text');
             const btn = document.getElementById('btn-auto-draw');
-            const speed = parseInt(document.getElementById('draw-speed').value, 10);
+            const speedSelect = document.getElementById('draw-speed');
+            const speed = speedSelect ? parseInt(speedSelect.value, 10) : 2000;
 
             if (icon) icon.className = 'fa-solid fa-pause';
             if (text) text.textContent = 'Jeda';
             if (btn) btn.classList.add('bg-amber-500/20', 'border-amber-500');
 
-            drawNextNumber();
+            window.drawNextNumber();
             autoDrawInterval = setInterval(() => {
                 if (isGameOver || availableNumbersToDraw.length === 0) {
                     stopAutoDraw();
                 } else {
-                    drawNextNumber();
+                    window.drawNextNumber();
                 }
             }, speed);
         }
@@ -919,12 +1023,12 @@
             }
         }
 
-        function updateAutoSpeed() {
+        window.updateAutoSpeed = function() {
             if (autoDrawInterval) {
                 stopAutoDraw();
                 startAutoDraw();
             }
-        }
+        };
 
         function handleCellClick(r, c, num) {
             if (isGameOver) return;
@@ -934,7 +1038,6 @@
             }
             if (r === 2 && c === 2) return;
 
-            // Verification: Only numbers already drawn by Admin can be marked
             if (!drawnNumbers.includes(num)) {
                 playSound('click');
                 return;
@@ -946,15 +1049,14 @@
             checkBingoProgress();
         }
 
-        function changeWinMode(mode) {
+        window.changeWinMode = function(mode) {
             selectedWinMode = mode;
             logMessage(`Mode kemenangan diubah ke: <strong>${getWinModeLabel(mode)}</strong>`, 'text-amber-300');
             
-            // Broadcast mode change to players
             broadcastState('CHANGE_WIN_MODE', { winMode: mode });
 
             checkBingoProgress();
-        }
+        };
 
         function getWinModeLabel(mode) {
             switch(mode) {
@@ -1040,8 +1142,10 @@
             stopAutoDraw();
             playSound('win');
             
-            document.getElementById('winner-message').innerText = `Selamat! Anda berhasil mencapai target kemenangan [${getWinModeLabel(selectedWinMode)}]!`;
-            document.getElementById('winner-modal').classList.remove('hidden');
+            const msgEl = document.getElementById('winner-message');
+            const modalEl = document.getElementById('winner-modal');
+            if (msgEl) msgEl.innerText = `Selamat! Anda berhasil mencapai target kemenangan [${getWinModeLabel(selectedWinMode)}]!`;
+            if (modalEl) modalEl.classList.remove('hidden');
             renderBoardGrid();
         }
 
@@ -1054,24 +1158,27 @@
             logContainer.prepend(entry);
         }
 
-        function closeWinnerModal() {
-            document.getElementById('winner-modal').classList.add('hidden');
-        }
+        window.closeWinnerModal = function() {
+            const modalEl = document.getElementById('winner-modal');
+            if (modalEl) modalEl.classList.add('hidden');
+        };
 
-        function openRulesModal() {
-            document.getElementById('rules-modal').classList.remove('hidden');
-        }
+        window.openRulesModal = function() {
+            const rulesEl = document.getElementById('rules-modal');
+            if (rulesEl) rulesEl.classList.remove('hidden');
+        };
 
-        function closeRulesModal() {
-            document.getElementById('rules-modal').classList.add('hidden');
-        }
+        window.closeRulesModal = function() {
+            const rulesEl = document.getElementById('rules-modal');
+            if (rulesEl) rulesEl.classList.add('hidden');
+        };
 
-        function resetGame() {
+        window.resetGame = function() {
             if (currentUser && currentUser.role === 'admin') {
                 broadcastState('RESET_GAME');
             }
             initGame();
-        }
+        };
     </script>
 </body>
 </html>
