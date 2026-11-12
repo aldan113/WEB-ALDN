@@ -54,32 +54,43 @@
 </head>
 <body class="text-slate-100 flex flex-col justify-between min-h-screen p-3 md:p-6">
 
-    <!-- View 1: Halaman Login & Authentication -->
-    <div id="login-screen" class="max-w-md mx-auto w-full my-auto bg-slate-900/80 backdrop-blur-xl p-6 md:p-8 rounded-3xl border border-slate-700/60 shadow-2xl relative z-20">
+    <!-- View 1: Halaman Login (Nama Bebas + Kode Akses Berdasarkan Peran) -->
+    <div id="login-screen" class="max-w-md mx-auto w-full my-auto bg-slate-900/85 backdrop-blur-xl p-6 md:p-8 rounded-3xl border border-slate-700/60 shadow-2xl relative z-20">
         <div class="text-center mb-6">
             <div class="w-16 h-16 bg-gradient-to-tr from-amber-400 via-pink-500 to-indigo-500 rounded-2xl flex items-center justify-center text-slate-950 text-3xl font-black mx-auto mb-3 shadow-lg shadow-pink-500/20">
                 <i class="fa-solid fa-bullseye"></i>
             </div>
             <h1 class="text-2xl font-black bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-                BINGO KLASIK 756
+                BINGO KLASIK 75
             </h1>
-            <p class="text-xs text-slate-400 mt-1">Silakan masuk untuk mulai bermain atau menonton</p>
+            <p class="text-xs text-slate-400 mt-1">Masukkan nama dan kode akses sesuai peran Anda</p>
         </div>
 
         <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
             <div>
                 <label class="block text-xs font-semibold text-slate-300 mb-1.5" for="username">
-                    <i class="fa-solid fa-user text-amber-400 mr-1"></i> Username
+                    <i class="fa-solid fa-user text-amber-400 mr-1"></i> Nama / Tampilan Anda
                 </label>
-                <input type="text" id="username" placeholder="Masukkan username" required
+                <input type="text" id="username" placeholder="Contoh: Budi Santoso" required
                     class="w-full bg-slate-800/90 border border-slate-700 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition">
             </div>
 
             <div>
-                <label class="block text-xs font-semibold text-slate-300 mb-1.5" for="password">
-                    <i class="fa-solid fa-lock text-pink-400 mr-1"></i> Password
+                <label class="block text-xs font-semibold text-slate-300 mb-1.5" for="role-select">
+                    <i class="fa-solid fa-shield text-indigo-400 mr-1"></i> Peran
                 </label>
-                <input type="password" id="password" placeholder="Masukkan password" required
+                <select id="role-select" class="w-full bg-slate-800/90 border border-slate-700 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none transition">
+                    <option value="player">Pemain</option>
+                    <option value="admin">Admin / Pemutar</option>
+                    <option value="spectator">Penonton</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1.5" for="access-code">
+                    <i class="fa-solid fa-key text-pink-400 mr-1"></i> Kode Akses
+                </label>
+                <input type="password" id="access-code" placeholder="Masukkan kode akses..." required
                     class="w-full bg-slate-800/90 border border-slate-700 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition">
             </div>
 
@@ -87,11 +98,11 @@
 
             <button type="submit" 
                 class="w-full py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 text-white font-bold rounded-xl text-sm shadow-lg shadow-indigo-500/25 transition">
-                <i class="fa-solid fa-right-to-bracket mr-1.5"></i> Masuk Bermain
+                <i class="fa-solid fa-right-to-bracket mr-1.5"></i> Masuk Permainan
             </button>
         </form>
 
-        <div class="mt-4 pt-4 border-t border-slate-800 text-center space-y-3">
+        <div class="mt-4 pt-4 border-t border-slate-800 text-center">
             <button onclick="loginAsGuest()" 
                 class="w-full py-2.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2">
                 <i class="fa-solid fa-eye text-emerald-400"></i> MASUK SEBAGAI PENONTON
@@ -108,7 +119,7 @@
                 </div>
                 <div>
                     <h2 class="text-lg font-bold text-white">Ruang Tunggu (Lobby)</h2>
-                    <p class="text-[11px] text-slate-400">Login sebagai: <strong id="lobby-user-name" class="text-amber-300">-</strong> (<span id="lobby-user-role">-</span>)</p>
+                    <p class="text-[11px] text-slate-400">Login: <strong id="lobby-user-name" class="text-amber-300">-</strong> (<span id="lobby-user-role">-</span>)</p>
                 </div>
             </div>
             <button onclick="logout()" class="px-3 py-1.5 bg-slate-800 hover:bg-rose-900/40 border border-slate-600 hover:border-rose-500/50 rounded-xl text-xs text-slate-300 hover:text-rose-300 transition">
@@ -118,7 +129,7 @@
 
         <div class="mb-5">
             <div class="flex justify-between items-center mb-2">
-                <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Daftar Pemain Siap:</span>
+                <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Daftar Pemain Bergabung:</span>
                 <span id="lobby-player-count" class="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2.5 py-0.5 rounded-full font-bold">0 Pemain</span>
             </div>
             <div id="lobby-player-list" class="bg-slate-950/70 border border-slate-800 rounded-2xl p-3 h-44 overflow-y-auto space-y-2 text-xs">
@@ -131,14 +142,13 @@
             <button onclick="startMatchFromLobby()" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2">
                 <i class="fa-solid fa-play"></i> Mulai Permainan Sekarang
             </button>
-            <p class="text-[11px] text-slate-400 text-center">Semua pemain di lobby akan otomatis masuk ke papan permainan.</p>
+            <p class="text-[11px] text-slate-400 text-center">Permainan akan disinkronkan ke seluruh perangkat pemain.</p>
         </div>
 
         <!-- Status Menunggu untuk Pemain & Penonton -->
         <div id="waiting-lobby-box" class="text-center py-4 bg-slate-800/60 rounded-2xl border border-slate-700/60">
             <i class="fa-solid fa-spinner fa-spin text-amber-400 text-xl mb-2"></i>
             <p class="text-xs text-slate-200 font-semibold">Menunggu Admin menekan tombol Mulai...</p>
-            <p class="text-[11px] text-slate-400 mt-1">Halaman akan otomatis berpindah saat permainan dimulai.</p>
         </div>
     </div>
 
@@ -146,7 +156,7 @@
     <div id="game-wrapper" class="hidden flex-col min-h-screen justify-between w-full">
 
         <!-- Header & Navigation -->
-        <header class="max-w-6xl mx-auto w-full flex flex-col sm:flex-row justify-between items-center gap-4 mb-4 bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 shadow-xl">
+        <header class="max-w-5xl mx-auto w-full flex flex-col sm:flex-row justify-between items-center gap-4 mb-4 bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 shadow-xl">
             <div class="flex items-center gap-3">
                 <div class="w-12 h-12 bg-gradient-to-tr from-amber-400 to-pink-500 rounded-xl flex items-center justify-center text-slate-950 text-2xl font-black shadow-lg">
                     <i class="fa-solid fa-bullseye"></i>
@@ -177,22 +187,33 @@
             </div>
         </header>
 
-        <!-- Winner Banner -->
-        <div id="winner-banner" class="hidden max-w-6xl mx-auto w-full mb-4 p-4 bg-gradient-to-r from-amber-500 via-pink-500 to-indigo-500 text-white font-bold rounded-2xl text-center shadow-xl">
-            <i class="fa-solid fa-trophy text-yellow-200 mr-2"></i> BINGO! PEMENANG SESI INI: <span id="winner-name-display" class="underline uppercase tracking-wider"></span>
+        <!-- WINNER NOTIFICATION POPUP -->
+        <div id="winner-popup-overlay" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
+            <div class="bg-gradient-to-tr from-amber-500 via-pink-600 to-indigo-600 p-1 rounded-3xl shadow-2xl animate-bounce max-w-md w-full">
+                <div class="bg-slate-900 p-6 md:p-8 rounded-[22px] text-center space-y-4">
+                    <div class="w-20 h-20 bg-amber-400 text-slate-950 rounded-full flex items-center justify-center text-4xl mx-auto shadow-lg">
+                        <i class="fa-solid fa-trophy"></i>
+                    </div>
+                    <h2 class="text-2xl font-black text-amber-400 tracking-wide">BINGO! PEMENANG</h2>
+                    <p class="text-sm text-slate-300">Selamat kepada pemain hebat:</p>
+                    <div id="winner-popup-name" class="text-2xl md:text-3xl font-extrabold text-white bg-slate-800/90 py-3 px-4 rounded-2xl border border-amber-400/40 uppercase tracking-widest">
+                        -
+                    </div>
+                    <button onclick="closeWinnerPopup()" class="w-full py-3 bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 font-bold rounded-xl text-sm shadow-lg">
+                        Tutup & Lanjutkan Menonton
+                    </button>
+                </div>
+            </div>
         </div>
 
         <!-- Main Game Area -->
-        <main id="main-content-area" class="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-start my-auto">
+        <main id="main-content-area" class="max-w-5xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-start my-auto">
 
-            <!-- Number Caller Panel (Admin & Display) -->
+            <!-- Kiri / Panel Mesin Pengocok Angka -->
             <div id="caller-panel" class="lg:col-span-5 flex flex-col gap-4 mx-auto w-full max-w-md lg:max-w-none">
-                
-                <!-- Number Caller Machine Card -->
                 <div class="bg-slate-900/60 backdrop-blur-md p-5 rounded-2xl border border-slate-700/50 shadow-xl flex flex-col items-center">
                     <h2 class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-3">Mesin Pengocok Angka</h2>
                     
-                    <!-- Display Drawn Ball -->
                     <div class="relative flex items-center justify-center my-2">
                         <div id="current-ball" class="w-28 h-28 rounded-full bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 border-4 border-amber-200 text-slate-950 flex flex-col items-center justify-center shadow-2xl shadow-amber-500/30 font-black caller-ball">
                             <span id="ball-letter" class="text-xl leading-none uppercase tracking-widest text-slate-800">READY</span>
@@ -200,14 +221,12 @@
                         </div>
                     </div>
 
-                    <!-- Info Mode Menang Aktif (Untuk Pemain & Penonton) -->
                     <div id="active-mode-badge" class="mt-2 px-3 py-1 bg-slate-800/90 border border-slate-700 rounded-full text-[11px] text-amber-300 font-semibold">
                         Mode Menang: 5 Garis (B-I-N-G-O)
                     </div>
 
-                    <!-- Admin Control Buttons & Mode Selector (Hidden for players/spectators) -->
+                    <!-- Tombol Kontrol Admin -->
                     <div id="admin-controls" class="w-full flex flex-col gap-3 mt-4 hidden">
-                        <!-- Win Mode Selection -->
                         <div class="flex items-center justify-between bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300">
                             <span class="flex items-center gap-1.5 font-semibold text-slate-300">
                                 <i class="fa-solid fa-trophy text-amber-400"></i> Mode Menang:
@@ -222,7 +241,6 @@
                             </select>
                         </div>
 
-                        <!-- Speed & Speech -->
                         <div class="flex items-center justify-between gap-2 bg-slate-800/80 p-2 rounded-xl border border-slate-700">
                             <div class="flex items-center gap-2 text-xs text-slate-300">
                                 <i class="fa-solid fa-gauge-high text-amber-400"></i>
@@ -236,11 +254,10 @@
                             </div>
                             <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
                                 <input type="checkbox" id="speech-toggle" checked class="accent-amber-400 rounded">
-                                <span>Bacakan Suara</span>
+                                <span>Suara</span>
                             </label>
                         </div>
 
-                        <!-- Putar Angka & Otomatis Buttons -->
                         <div class="flex gap-2">
                             <button id="btn-draw" onclick="drawNextNumber()" class="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl text-base shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-dice"></i> Putar Angka
@@ -251,7 +268,6 @@
                         </div>
                     </div>
 
-                    <!-- Drawn Numbers History Bar -->
                     <div class="w-full mt-4 pt-3 border-t border-slate-700/60">
                         <div class="flex justify-between text-xs text-slate-400 mb-2">
                             <span>Angka Terakhir Keluar:</span>
@@ -263,7 +279,7 @@
                     </div>
                 </div>
 
-                <!-- Log Panel (Admin Only) -->
+                <!-- Log Panel -->
                 <div id="admin-log-panel" class="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 shadow-xl hidden">
                     <h2 class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Catatan Pengocokan</h2>
                     <div id="game-log" class="h-24 overflow-y-auto space-y-1.5 text-xs text-slate-300 pr-1">
@@ -272,7 +288,7 @@
                 </div>
             </div>
 
-            <!-- Right / Main Bingo Board Section (Player Only) -->
+            <!-- Kanan / Papan Bingo Pemain -->
             <div id="player-board-panel" class="lg:col-span-7 bg-slate-900/60 backdrop-blur-md p-4 md:p-6 rounded-2xl border border-slate-700/50 shadow-xl flex flex-col items-center justify-center">
                 <div class="w-full flex justify-between items-center mb-4 pb-3 border-b border-slate-700/60">
                     <div class="text-lg md:text-xl font-bold text-white flex items-center gap-2">
@@ -283,7 +299,7 @@
                     </button>
                 </div>
 
-                <div class="w-full aspect-square max-w-[480px] flex flex-col gap-2 p-2 bg-slate-950/70 rounded-2xl border border-slate-800 shadow-2xl">
+                <div class="w-full aspect-square max-w-[440px] flex flex-col gap-2 p-2 bg-slate-950/70 rounded-2xl border border-slate-800 shadow-2xl">
                     <div class="grid grid-cols-5 gap-2 text-center">
                         <div class="py-1 font-black text-amber-400 text-lg md:text-xl">B</div>
                         <div class="py-1 font-black text-pink-400 text-lg md:text-xl">I</div>
@@ -297,7 +313,7 @@
         </main>
     </div>
 
-    <!-- JavaScript Logika, Firebase & JSON Auth -->
+    <!-- JavaScript Logika & Firebase & JSON Auth Berbasis Kode Akses -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -315,6 +331,7 @@
         const db = getFirestore(app);
         const roomRef = doc(db, "rooms", "main_room");
 
+        // Link JSON Auth dari GitHub Anda
         const JSON_URLS = {
             admin: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingoadmin.json',
             pemain: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingopemain.json',
@@ -331,6 +348,7 @@
         let selectedWinMode = '5lines';
         let gameStatus = 'lobby';
         let currentWinner = null;
+        let popupDismissed = false;
 
         const WIN_MODE_LABELS = {
             '5lines': '5 Garis (B-I-N-G-O)',
@@ -346,7 +364,7 @@
                 const response = await fetch(url);
                 if (!response.ok) throw new Error("Gagal ambil JSON");
                 const data = await response.json();
-                return Array.isArray(data) ? data : (data.users || [data]);
+                return Array.isArray(data) ? data : (data.codes || data.users || [data]);
             } catch (e) {
                 console.warn("Gagal memuat JSON:", e);
                 return [];
@@ -356,10 +374,11 @@
         window.handleLogin = async function(e) {
             e.preventDefault();
             const userInput = document.getElementById('username').value.trim();
-            const passInput = document.getElementById('password').value.trim();
+            const role = document.getElementById('role-select').value;
+            const codeInput = document.getElementById('access-code').value.trim();
             const errorElem = document.getElementById('login-error');
 
-            errorElem.textContent = 'Memeriksa kredensial dari server...';
+            errorElem.textContent = 'Memeriksa kode akses dari server...';
             errorElem.classList.remove('hidden');
 
             try {
@@ -369,28 +388,57 @@
                     fetchUserData(JSON_URLS.penonton)
                 ]);
 
-                const checkMatch = (list, roleName) => {
-                    if (!list || !Array.isArray(list)) return null;
-                    const found = list.find(u => {
-                        const uname = u.username || u.user || u.name;
-                        const pass = u.password || u.pass;
-                        return uname && uname.toLowerCase() === userInput.toLowerCase() && String(pass) === passInput;
+                let isValidCode = false;
+
+                if (role === 'admin') {
+                    // Cek kode akses di bingoadmin.json
+                    isValidCode = adminList.some(item => {
+                        const code = item.code || item.accessCode || item.password;
+                        return String(code).trim() === codeInput;
                     });
-                    return found ? { ...found, role: roleName } : null;
-                };
+                } else if (role === 'player') {
+                    // Cek apakah kode akses terdaftar di bingopemain.json
+                    isValidCode = pemainList.some(item => {
+                        const code = item.code || item.accessCode || item.password;
+                        return String(code).trim() === codeInput;
+                    });
 
-                const matchedUser = checkMatch(adminList, 'admin') ||
-                                    checkMatch(pemainList, 'player') ||
-                                    checkMatch(penontonList, 'spectator');
+                    if (isValidCode) {
+                        // Validasi 1 kode akses per perangkat/tab menggunakan localStorage
+                        const activeCodes = JSON.parse(localStorage.getItem('bingo_active_codes') || '[]');
+                        const myStoredCode = localStorage.getItem('bingo_my_code');
 
-                if (matchedUser) {
-                    errorElem.classList.add('hidden');
-                    await enterSession(matchedUser);
+                        if (myStoredCode !== codeInput && activeCodes.includes(codeInput)) {
+                            errorElem.textContent = 'Kode akses ini sudah digunakan di perangkat atau tab lain!';
+                            return;
+                        }
+
+                        // Daftarkan tab ini sebagai pemegang kode
+                        if (!activeCodes.includes(codeInput)) {
+                            activeCodes.push(codeInput);
+                            localStorage.setItem('bingo_active_codes', JSON.stringify(activeCodes));
+                        }
+                        localStorage.setItem('bingo_my_code', codeInput);
+                    }
                 } else {
-                    errorElem.textContent = 'Username atau password salah / tidak terdaftar di JSON!';
+                    isValidCode = true; // Penonton bebas
                 }
+
+                if (!isValidCode) {
+                    errorElem.textContent = 'Kode akses salah atau tidak terdaftar di server!';
+                    return;
+                }
+
+                errorElem.classList.add('hidden');
+                await enterSession({
+                    username: userInput,
+                    displayName: userInput,
+                    role: role,
+                    accessCode: codeInput
+                });
+
             } catch (err) {
-                errorElem.textContent = 'Gagal memeriksa data JSON. Periksa koneksi internet Anda!';
+                errorElem.textContent = 'Gagal memverifikasi data. Periksa koneksi internet Anda!';
             }
         };
 
@@ -421,17 +469,16 @@
             if (user.role === 'admin') {
                 badge.textContent = 'Admin';
                 badge.className = 'px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full text-[10px] font-bold';
-                callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full";
-                playerBoardPanel.classList.add('hidden');
+                callerPanel.className = "lg:col-span-5 flex flex-col gap-4";
+                playerBoardPanel.classList.remove('hidden');
                 adminControls.classList.remove('hidden');
                 adminLogPanel.classList.remove('hidden');
                 btnResetLobby.classList.remove('hidden');
-                btnResetLobby.classList.add('flex');
             } else if (user.role === 'spectator') {
-                badge.textContent = 'Penonton (Spectator)';
+                badge.textContent = 'Penonton';
                 badge.className = 'px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-[10px] font-bold';
-                callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full";
-                playerBoardPanel.classList.add('hidden');
+                callerPanel.className = "lg:col-span-5 flex flex-col gap-4";
+                playerBoardPanel.classList.remove('hidden');
                 adminControls.classList.add('hidden');
                 adminLogPanel.classList.add('hidden');
             } else {
@@ -443,7 +490,6 @@
                 adminLogPanel.classList.add('hidden');
             }
 
-            // Pastikan dokumen room ada & masuk ke status lobby jika belum playing
             const snap = await getDoc(roomRef);
             if (!snap.exists()) {
                 await setDoc(roomRef, {
@@ -478,20 +524,21 @@
                 drawnNumbers = Array.isArray(data.drawnNumbers) ? data.drawnNumbers : [];
                 const currNum = data.currentNumber;
                 selectedWinMode = data.winMode || '5lines';
+                const prevWinner = currentWinner;
                 currentWinner = data.winner || null;
 
-                // Update tampilan mode menang
                 document.getElementById('active-mode-badge').textContent = `Mode Menang: ${WIN_MODE_LABELS[selectedWinMode] || selectedWinMode}`;
                 const modeSelect = document.getElementById('win-mode-select');
                 if (modeSelect) modeSelect.value = selectedWinMode;
 
-                // Routing tampilan Lobby vs Playing
                 if (gameStatus === 'lobby') {
                     stopAutoDraw();
                     lastSpokenNum = null;
+                    popupDismissed = false;
                     document.getElementById('lobby-screen').classList.remove('hidden');
                     document.getElementById('game-wrapper').classList.add('hidden');
                     document.getElementById('game-wrapper').classList.remove('flex');
+                    document.getElementById('winner-popup-overlay').classList.add('hidden');
 
                     document.getElementById('lobby-player-count').textContent = `${players.length} Pemain`;
                     const listEl = document.getElementById('lobby-player-list');
@@ -516,7 +563,6 @@
                     return;
                 }
 
-                // Status === 'playing'
                 if (prevStatus === 'lobby') {
                     initBoard();
                 }
@@ -525,17 +571,12 @@
                 document.getElementById('game-wrapper').classList.remove('hidden');
                 document.getElementById('game-wrapper').classList.add('flex');
 
-                // Update Winner Banner
-                const winBanner = document.getElementById('winner-banner');
-                if (currentWinner) {
-                    winBanner.classList.remove('hidden');
-                    document.getElementById('winner-name-display').textContent = currentWinner;
-                    stopAutoDraw();
-                } else {
-                    winBanner.classList.add('hidden');
+                if (currentWinner && !prevWinner && !popupDismissed) {
+                    document.getElementById('winner-popup-overlay').classList.remove('hidden');
+                    document.getElementById('winner-popup-name').textContent = currentWinner;
+                    playSound('win');
                 }
 
-                // Update Bola Pengocok
                 const ballLetterEl = document.getElementById('ball-letter');
                 const ballNumberEl = document.getElementById('ball-number');
                 if (currNum) {
@@ -551,10 +592,8 @@
                 } else {
                     ballLetterEl.innerText = 'READY';
                     ballNumberEl.innerText = '--';
-                    document.getElementById('game-log').innerHTML = '<div class="text-slate-500 italic">Tekan "Putar Angka" untuk memutar nomor pertama.</div>';
                 }
 
-                // Update Riwayat Angka Keluar
                 document.getElementById('drawn-count-label').innerText = `${drawnNumbers.length} / 75`;
                 const histEl = document.getElementById('drawn-history');
                 if (drawnNumbers.length === 0) {
@@ -568,7 +607,11 @@
             });
         }
 
-        // Admin mulai permainan dari Lobby (otomatis reset angka ke 0)
+        window.closeWinnerPopup = function() {
+            popupDismissed = true;
+            document.getElementById('winner-popup-overlay').classList.add('hidden');
+        };
+
         window.startMatchFromLobby = async function() {
             await updateDoc(roomRef, {
                 status: 'playing',
@@ -578,10 +621,8 @@
             });
         };
 
-        // Admin reset permainan kembali ke Lobby
         window.resetToLobby = async function() {
             stopAutoDraw();
-            const currentName = currentUser ? (currentUser.displayName || currentUser.username) : null;
             await setDoc(roomRef, {
                 status: 'lobby',
                 players: [],
@@ -605,7 +646,6 @@
             }
             if (available.length === 0) {
                 stopAutoDraw();
-                alert("Semua 75 angka sudah dikocok!");
                 return;
             }
 
@@ -675,6 +715,29 @@
             }
         }
 
+        function playSound(type) {
+            if (!soundEnabled) return;
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const now = audioCtx.currentTime;
+                if (type === 'win') {
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+                        const noteOsc = audioCtx.createOscillator();
+                        const noteGain = audioCtx.createGain();
+                        noteOsc.connect(noteGain);
+                        noteGain.connect(audioCtx.destination);
+                        noteOsc.frequency.setValueAtTime(freq, now + idx * 0.12);
+                        noteGain.gain.setValueAtTime(0.3, now + idx * 0.12);
+                        noteGain.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.12 + 0.2);
+                        noteOsc.start(now + idx * 0.12);
+                        noteOsc.stop(now + idx * 0.12 + 0.25);
+                    });
+                }
+            } catch (e) {
+                console.log(e);
+            }
+        }
+
         function getBingoLetter(num) {
             if (num <= 15) return 'B';
             if (num <= 30) return 'I';
@@ -703,7 +766,7 @@
         function initBoard() {
             board = generateClassicBoard();
             markedState = Array.from({ length: 5 }, () => Array(5).fill(false));
-            markedState[2][2] = true; // FREE tengah
+            markedState[2][2] = true;
             renderBoardGrid();
         }
 
@@ -733,8 +796,7 @@
                     cell.onclick = async () => {
                         if (isFree || currentWinner) return;
                         if (!drawnNumbers.includes(num)) {
-                            alert(`Angka ${num} belum dikocok oleh Admin!`);
-                            return;
+                            return; // Angka belum keluar, abaikan tanpa alert
                         }
                         markedState[r][c] = !markedState[r][c];
                         renderBoardGrid();
@@ -791,6 +853,14 @@
         };
 
         window.logout = function() {
+            // Hapus session kode akses di perangkat ini agar bisa dipakai lagi jika perlu
+            const myCode = localStorage.getItem('bingo_my_code');
+            if (myCode) {
+                let activeCodes = JSON.parse(localStorage.getItem('bingo_active_codes') || '[]');
+                activeCodes = activeCodes.filter(c => c !== myCode);
+                localStorage.setItem('bingo_active_codes', JSON.stringify(activeCodes));
+                localStorage.removeItem('bingo_my_code');
+            }
             stopAutoDraw();
             location.reload();
         };
