@@ -54,7 +54,7 @@
 </head>
 <body class="text-slate-100 flex flex-col justify-between min-h-screen p-3 md:p-6">
 
-    <!-- View 1: Halaman Login (Nama Bebas + Kode Akses Berdasarkan Peran) -->
+    <!-- View 1: Halaman Login -->
     <div id="login-screen" class="max-w-md mx-auto w-full my-auto bg-slate-900/85 backdrop-blur-xl p-6 md:p-8 rounded-3xl border border-slate-700/60 shadow-2xl relative z-20">
         <div class="text-center mb-6">
             <div class="w-16 h-16 bg-gradient-to-tr from-amber-400 via-pink-500 to-indigo-500 rounded-2xl flex items-center justify-center text-slate-950 text-3xl font-black mx-auto mb-3 shadow-lg shadow-pink-500/20">
@@ -137,7 +137,6 @@
             </div>
         </div>
 
-        <!-- Kontrol Mulai Khusus Admin -->
         <div id="admin-lobby-controls" class="hidden space-y-2">
             <button onclick="startMatchFromLobby()" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2">
                 <i class="fa-solid fa-play"></i> Mulai Permainan Sekarang
@@ -145,7 +144,6 @@
             <p class="text-[11px] text-slate-400 text-center">Permainan akan disinkronkan ke seluruh perangkat pemain.</p>
         </div>
 
-        <!-- Status Menunggu untuk Pemain & Penonton -->
         <div id="waiting-lobby-box" class="text-center py-4 bg-slate-800/60 rounded-2xl border border-slate-700/60">
             <i class="fa-solid fa-spinner fa-spin text-amber-400 text-xl mb-2"></i>
             <p class="text-xs text-slate-200 font-semibold">Menunggu Admin menekan tombol Mulai...</p>
@@ -187,10 +185,15 @@
             </div>
         </header>
 
-        <!-- WINNER NOTIFICATION POPUP -->
+        <!-- WINNER NOTIFICATION POPUP (Tanpa Animasi Naik Turun & Dilengkapi Tombol Silang Kecil X) -->
         <div id="winner-popup-overlay" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
-            <div class="bg-gradient-to-tr from-amber-500 via-pink-600 to-indigo-600 p-1 rounded-3xl shadow-2xl animate-bounce max-w-md w-full">
-                <div class="bg-slate-900 p-6 md:p-8 rounded-[22px] text-center space-y-4">
+            <div class="bg-gradient-to-tr from-amber-500 via-pink-600 to-indigo-600 p-1 rounded-3xl shadow-2xl max-w-md w-full relative">
+                <div class="bg-slate-900 p-6 md:p-8 rounded-[22px] text-center space-y-4 relative">
+                    <!-- Tombol Silang Kecil di Pojok Kanan Atas -->
+                    <button onclick="closeWinnerPopup()" class="absolute top-3 right-3 w-8 h-8 bg-slate-800 hover:bg-rose-600/80 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-sm transition">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+
                     <div class="w-20 h-20 bg-amber-400 text-slate-950 rounded-full flex items-center justify-center text-4xl mx-auto shadow-lg">
                         <i class="fa-solid fa-trophy"></i>
                     </div>
@@ -313,7 +316,7 @@
         </main>
     </div>
 
-    <!-- JavaScript Logika & Firebase & JSON Auth Berbasis Kode Akses -->
+    <!-- JavaScript Logika & Firebase & JSON Auth -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -331,7 +334,6 @@
         const db = getFirestore(app);
         const roomRef = doc(db, "rooms", "main_room");
 
-        // Link JSON Auth dari GitHub Anda
         const JSON_URLS = {
             admin: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingoadmin.json',
             pemain: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingopemain.json',
@@ -391,20 +393,17 @@
                 let isValidCode = false;
 
                 if (role === 'admin') {
-                    // Cek kode akses di bingoadmin.json
                     isValidCode = adminList.some(item => {
                         const code = item.code || item.accessCode || item.password;
                         return String(code).trim() === codeInput;
                     });
                 } else if (role === 'player') {
-                    // Cek apakah kode akses terdaftar di bingopemain.json
                     isValidCode = pemainList.some(item => {
                         const code = item.code || item.accessCode || item.password;
                         return String(code).trim() === codeInput;
                     });
 
                     if (isValidCode) {
-                        // Validasi 1 kode akses per perangkat/tab menggunakan localStorage
                         const activeCodes = JSON.parse(localStorage.getItem('bingo_active_codes') || '[]');
                         const myStoredCode = localStorage.getItem('bingo_my_code');
 
@@ -413,7 +412,6 @@
                             return;
                         }
 
-                        // Daftarkan tab ini sebagai pemegang kode
                         if (!activeCodes.includes(codeInput)) {
                             activeCodes.push(codeInput);
                             localStorage.setItem('bingo_active_codes', JSON.stringify(activeCodes));
@@ -421,7 +419,7 @@
                         localStorage.setItem('bingo_my_code', codeInput);
                     }
                 } else {
-                    isValidCode = true; // Penonton bebas
+                    isValidCode = true;
                 }
 
                 if (!isValidCode) {
@@ -796,7 +794,7 @@
                     cell.onclick = async () => {
                         if (isFree || currentWinner) return;
                         if (!drawnNumbers.includes(num)) {
-                            return; // Angka belum keluar, abaikan tanpa alert
+                            return; 
                         }
                         markedState[r][c] = !markedState[r][c];
                         renderBoardGrid();
@@ -853,7 +851,6 @@
         };
 
         window.logout = function() {
-            // Hapus session kode akses di perangkat ini agar bisa dipakai lagi jika perlu
             const myCode = localStorage.getItem('bingo_my_code');
             if (myCode) {
                 let activeCodes = JSON.parse(localStorage.getItem('bingo_active_codes') || '[]');
