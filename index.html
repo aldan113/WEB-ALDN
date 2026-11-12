@@ -3,298 +3,797 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bingo Klasik 75 Angka - Real-time Online</title>
+    <title>Permainan Papan BINGO Klasik</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Poppins', sans-serif; background: #0f172a; color: #f8fafc; }
-        .bingo-cell { aspect-ratio: 1; transition: all 0.2s ease; }
-        .marked { background: linear-gradient(135deg, #10b981, #059669) !important; color: white !important; transform: scale(0.95); box-shadow: inset 0 2px 4px rgba(0,0,0,0.2); }
+        body {
+            font-family: 'Fredoka', 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #311042 100%);
+            min-height: 100vh;
+        }
+        .bingo-cell {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+        .bingo-cell:hover:not(.marked) {
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+        }
+        .bingo-cell.marked {
+            background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
+            color: white !important;
+            box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
+            animation: pulse-marked 0.3s ease-out;
+        }
+        .bingo-cell.free-space {
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%) !important;
+            color: white !important;
+            font-weight: 900;
+        }
+        @keyframes pulse-marked {
+            0% { transform: scale(0.9); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        .caller-ball {
+            animation: bounce-ball 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes bounce-ball {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.5); border-radius: 4px; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4">
+<body class="text-slate-100 flex flex-col justify-between min-h-screen p-3 md:p-6">
 
-    <!-- HALAMAN LOGIN & ROLE -->
-    <div id="login-screen" class="w-full max-w-md bg-slate-800/90 backdrop-blur border border-slate-700 p-6 rounded-2xl shadow-2xl">
-        <h1 class="text-2xl font-bold text-center mb-2 bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">BINGO KLASIK 75</h1>
-        <p class="text-xs text-slate-400 text-center mb-6">Pilih peran Anda dan masukkan akses</p>
-        
-        <div class="space-y-4">
+    <!-- View 1: Halaman Login & Authentication -->
+    <div id="login-screen" class="max-w-md mx-auto w-full my-auto bg-slate-900/80 backdrop-blur-xl p-6 md:p-8 rounded-3xl border border-slate-700/60 shadow-2xl relative z-20">
+        <div class="text-center mb-6">
+            <div class="w-16 h-16 bg-gradient-to-tr from-amber-400 via-pink-500 to-indigo-500 rounded-2xl flex items-center justify-center text-slate-950 text-3xl font-black mx-auto mb-3 shadow-lg shadow-pink-500/20">
+                <i class="fa-solid fa-bullseye"></i>
+            </div>
+            <h1 class="text-2xl font-black bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
+                BINGO KLASIK 75
+            </h1>
+            <p class="text-xs text-slate-400 mt-1">Silakan masuk untuk mulai bermain atau menonton</p>
+        </div>
+
+        <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
             <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Nama Tampilan / Pemain</label>
-                <input type="text" id="username-input" placeholder="Masukkan nama Anda..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500">
+                <label class="block text-xs font-semibold text-slate-300 mb-1.5" for="username">
+                    <i class="fa-solid fa-user text-amber-400 mr-1"></i> Username
+                </label>
+                <input type="text" id="username" placeholder="Masukkan username" required
+                    class="w-full bg-slate-800/90 border border-slate-700 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition">
             </div>
+
             <div>
-                <label class="block text-xs font-medium text-slate-300 mb-1">Pilih Peran</label>
-                <select id="role-select" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500">
-                    <option value="player">Pemain</option>
-                    <option value="admin">Admin / Pemutar</option>
-                    <option value="spectator">Penonton</option>
-                </select>
+                <label class="block text-xs font-semibold text-slate-300 mb-1.5" for="password">
+                    <i class="fa-solid fa-lock text-pink-400 mr-1"></i> Password
+                </label>
+                <input type="password" id="password" placeholder="Masukkan password" required
+                    class="w-full bg-slate-800/90 border border-slate-700 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition">
             </div>
-            <div id="admin-code-box" class="hidden">
-                <label class="block text-xs font-medium text-slate-300 mb-1">Kode Akses Admin</label>
-                <input type="password" id="admin-pass" placeholder="Masukkan kode admin..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-emerald-500">
-            </div>
-            <button onclick="handleLogin()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-cyan-500 font-semibold rounded-xl shadow-lg hover:opacity-90 transition">Masuk Permainan</button>
+
+            <div id="login-error" class="hidden text-xs text-rose-400 bg-rose-500/10 border border-rose-500/20 p-2.5 rounded-xl text-center font-medium"></div>
+
+            <button type="submit" 
+                class="w-full py-3 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:to-pink-600 text-white font-bold rounded-xl text-sm shadow-lg shadow-indigo-500/25 transition">
+                <i class="fa-solid fa-right-to-bracket mr-1.5"></i> Masuk Bermain
+            </button>
+        </form>
+
+        <div class="mt-4 pt-4 border-t border-slate-800 text-center space-y-3">
+            <button onclick="loginAsGuest()" 
+                class="w-full py-2.5 bg-slate-800 hover:bg-slate-700/80 border border-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-eye text-emerald-400"></i> MASUK SEBAGAI PENONTON
+            </button>
         </div>
     </div>
 
-    <!-- HALAMAN LOBBY / RUANG TUNGGU -->
-    <div id="lobby-screen" class="hidden w-full max-w-lg bg-slate-800/90 border border-slate-700 p-6 rounded-2xl shadow-2xl">
-        <div class="flex justify-between items-center mb-4">
-            <h2 class="text-lg font-bold text-emerald-400">Ruang Tunggu Permainan (Lobby)</h2>
-            <button onclick="logout()" class="text-xs bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg border border-red-500/30">Keluar</button>
+    <!-- View 2: Ruang Tunggu (Lobby) -->
+    <div id="lobby-screen" class="hidden max-w-lg mx-auto w-full my-auto bg-slate-900/80 backdrop-blur-xl p-6 md:p-8 rounded-3xl border border-slate-700/60 shadow-2xl">
+        <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-700/60">
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 bg-gradient-to-tr from-amber-400 to-pink-500 rounded-xl flex items-center justify-center text-slate-950 text-lg font-black">
+                    <i class="fa-solid fa-users"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-white">Ruang Tunggu (Lobby)</h2>
+                    <p class="text-[11px] text-slate-400">Login sebagai: <strong id="lobby-user-name" class="text-amber-300">-</strong> (<span id="lobby-user-role">-</span>)</p>
+                </div>
+            </div>
+            <button onclick="logout()" class="px-3 py-1.5 bg-slate-800 hover:bg-rose-900/40 border border-slate-600 hover:border-rose-500/50 rounded-xl text-xs text-slate-300 hover:text-rose-300 transition">
+                <i class="fa-solid fa-right-from-bracket mr-1"></i> Keluar
+            </button>
         </div>
-        <p class="text-xs text-slate-400 mb-4" id="lobby-subtitle">Menunggu pemain bergabung sebelum permainan dimulai...</p>
-        
-        <div class="mb-6">
+
+        <div class="mb-5">
             <div class="flex justify-between items-center mb-2">
-                <span class="text-xs font-semibold text-slate-300">PEMAIN YANG TERHUBUNG:</span>
-                <span id="player-count-badge" class="text-xs bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-full font-bold">0 Pemain</span>
+                <span class="text-xs font-semibold text-slate-300 uppercase tracking-wider">Daftar Pemain Siap:</span>
+                <span id="lobby-player-count" class="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2.5 py-0.5 rounded-full font-bold">0 Pemain</span>
             </div>
-            <div id="lobby-player-list" class="bg-slate-900 border border-slate-700 rounded-xl p-3 h-40 overflow-y-auto space-y-2 text-sm text-slate-300">
-                <div class="text-slate-500 text-center italic mt-12">Belum ada pemain yang masuk...</div>
+            <div id="lobby-player-list" class="bg-slate-950/70 border border-slate-800 rounded-2xl p-3 h-44 overflow-y-auto space-y-2 text-xs">
+                <div class="text-slate-500 text-center italic mt-14">Menunggu pemain masuk ke lobby...</div>
             </div>
         </div>
 
-        <div id="admin-lobby-controls" class="hidden">
-            <button onclick="startActiveGame()" class="w-full py-3 bg-gradient-to-r from-emerald-500 to-cyan-500 font-bold rounded-xl shadow-lg hover:opacity-90 transition">▶ Mulai Permainan Sekarang</button>
+        <!-- Kontrol Mulai Khusus Admin -->
+        <div id="admin-lobby-controls" class="hidden space-y-2">
+            <button onclick="startMatchFromLobby()" class="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl text-sm shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-play"></i> Mulai Permainan Sekarang
+            </button>
+            <p class="text-[11px] text-slate-400 text-center">Semua pemain di lobby akan otomatis masuk ke papan permainan.</p>
         </div>
-        <div id="player-lobby-waiting" class="text-center py-4 bg-slate-900/50 rounded-xl border border-slate-700/50">
-            <div class="inline-block animate-spin rounded-full h-6 w-6 border-2 border-emerald-500 border-t-transparent mb-2"></div>
-            <p class="text-xs text-slate-300 font-medium">Menunggu Admin Memulai Permainan...</p>
+
+        <!-- Status Menunggu untuk Pemain & Penonton -->
+        <div id="waiting-lobby-box" class="text-center py-4 bg-slate-800/60 rounded-2xl border border-slate-700/60">
+            <i class="fa-solid fa-spinner fa-spin text-amber-400 text-xl mb-2"></i>
+            <p class="text-xs text-slate-200 font-semibold">Menunggu Admin menekan tombol Mulai...</p>
+            <p class="text-[11px] text-slate-400 mt-1">Halaman akan otomatis berpindah saat permainan dimulai.</p>
         </div>
     </div>
 
-    <!-- HALAMAN UTAMA GAME BINGO -->
-    <div id="game-screen" class="hidden w-full max-w-4xl bg-slate-800/90 border border-slate-700 p-6 rounded-2xl shadow-2xl">
-        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
-            <div>
-                <h2 id="room-title" class="text-xl font-bold text-emerald-400">Bingo Klasik 75</h2>
-                <p id="user-role-label" class="text-xs text-slate-400">Peran: -</p>
+    <!-- View 3: Header & Main Game UI -->
+    <div id="game-wrapper" class="hidden flex-col min-h-screen justify-between w-full">
+
+        <!-- Header & Navigation -->
+        <header class="max-w-6xl mx-auto w-full flex flex-col sm:flex-row justify-between items-center gap-4 mb-4 bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 shadow-xl">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 bg-gradient-to-tr from-amber-400 to-pink-500 rounded-xl flex items-center justify-center text-slate-950 text-2xl font-black shadow-lg">
+                    <i class="fa-solid fa-bullseye"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
+                        BINGO KLASIK 75
+                    </h1>
+                    <p class="text-xs text-slate-400 flex items-center gap-2">
+                        <span>Pengguna: <strong id="logged-user-display" class="text-amber-300">Player</strong></span>
+                        <span id="user-role-badge" class="px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-[10px] font-bold">Pemain</span>
+                    </p>
+                </div>
             </div>
-            <button onclick="logout()" class="text-xs bg-red-500/20 text-red-400 px-3 py-1 rounded-lg border border-red-500/30">Keluar</button>
-        </div>
 
-        <!-- PANEL KONTROL ADMIN -->
-        <div id="admin-control-panel" class="hidden mb-6 p-4 bg-slate-900/80 rounded-xl border border-slate-700 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div class="text-center md:text-left">
-                <span class="text-xs text-slate-400 block">NOMOR TERBARU KELUAR</span>
-                <span id="current-drawn-display" class="text-4xl font-extrabold text-emerald-400">-</span>
+            <!-- Action Buttons -->
+            <div class="flex flex-wrap items-center justify-center gap-2">
+                <button id="btn-sound" onclick="toggleSound()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-xl text-sm flex items-center gap-2 transition">
+                    <i id="sound-icon" class="fa-solid fa-volume-high text-amber-400"></i>
+                    <span id="sound-text">Suara: On</span>
+                </button>
+                <button id="btn-reset-lobby" onclick="resetToLobby()" class="hidden px-3 py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 rounded-xl text-sm text-amber-300 flex items-center gap-2 transition">
+                    <i class="fa-solid fa-rotate-left"></i> Reset / Lobby
+                </button>
+                <button onclick="logout()" class="px-3 py-2 bg-slate-800 hover:bg-rose-900/40 border border-slate-600 hover:border-rose-500/50 rounded-xl text-sm text-slate-300 hover:text-rose-300 transition">
+                    <i class="fa-solid fa-right-from-bracket mr-1"></i> Keluar
+                </button>
             </div>
-            <button id="draw-btn" onclick="drawNextNumber()" class="px-6 py-3 bg-emerald-500 hover:bg-emerald-600 font-bold rounded-xl shadow transition">Kocok Angka Berikutnya</button>
+        </header>
+
+        <!-- Winner Banner -->
+        <div id="winner-banner" class="hidden max-w-6xl mx-auto w-full mb-4 p-4 bg-gradient-to-r from-amber-500 via-pink-500 to-indigo-500 text-white font-bold rounded-2xl text-center shadow-xl">
+            <i class="fa-solid fa-trophy text-yellow-200 mr-2"></i> BINGO! PEMENANG SESI INI: <span id="winner-name-display" class="underline uppercase tracking-wider"></span>
         </div>
 
-        <!-- NOTIFIKASI PEMENANG BANNER -->
-        <div id="winner-banner" class="hidden mb-6 p-4 bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 font-bold rounded-xl text-center shadow-lg animate-bounce">
-            🎉 SELAMAT! PEMENANG BINGO ADALAH: <span id="winner-name-text" class="underline text-lg"></span> 🎉
-        </div>
+        <!-- Main Game Area -->
+        <main id="main-content-area" class="max-w-6xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-start my-auto">
 
-        <!-- PAPAN BINGO 5X5 -->
-        <div class="grid grid-cols-5 gap-2 max-w-md mx-auto mb-6" id="bingo-board"></div>
+            <!-- Number Caller Panel (Admin & Display) -->
+            <div id="caller-panel" class="lg:col-span-5 flex flex-col gap-4 mx-auto w-full max-w-md lg:max-w-none">
+                
+                <!-- Number Caller Machine Card -->
+                <div class="bg-slate-900/60 backdrop-blur-md p-5 rounded-2xl border border-slate-700/50 shadow-xl flex flex-col items-center">
+                    <h2 class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-3">Mesin Pengocok Angka</h2>
+                    
+                    <!-- Display Drawn Ball -->
+                    <div class="relative flex items-center justify-center my-2">
+                        <div id="current-ball" class="w-28 h-28 rounded-full bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 border-4 border-amber-200 text-slate-950 flex flex-col items-center justify-center shadow-2xl shadow-amber-500/30 font-black caller-ball">
+                            <span id="ball-letter" class="text-xl leading-none uppercase tracking-widest text-slate-800">READY</span>
+                            <span id="ball-number" class="text-4xl leading-none font-extrabold mt-1">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Info Mode Menang Aktif (Untuk Pemain & Penonton) -->
+                    <div id="active-mode-badge" class="mt-2 px-3 py-1 bg-slate-800/90 border border-slate-700 rounded-full text-[11px] text-amber-300 font-semibold">
+                        Mode Menang: 5 Garis (B-I-N-G-O)
+                    </div>
+
+                    <!-- Admin Control Buttons & Mode Selector (Hidden for players/spectators) -->
+                    <div id="admin-controls" class="w-full flex flex-col gap-3 mt-4 hidden">
+                        <!-- Win Mode Selection -->
+                        <div class="flex items-center justify-between bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300">
+                            <span class="flex items-center gap-1.5 font-semibold text-slate-300">
+                                <i class="fa-solid fa-trophy text-amber-400"></i> Mode Menang:
+                            </span>
+                            <select id="win-mode-select" onchange="changeWinMode(this.value)" class="bg-slate-900 text-amber-300 font-semibold border border-slate-700 rounded-lg px-2 py-1 focus:outline-none cursor-pointer">
+                                <option value="5lines">5 Garis (B-I-N-G-O)</option>
+                                <option value="1line">1 Garis Bebas</option>
+                                <option value="vert_horiz">Vertikal + Horizontal</option>
+                                <option value="vertical">1 Garis Vertikal</option>
+                                <option value="horizontal">1 Garis Horizontal</option>
+                                <option value="fullhouse">Full House (Semua)</option>
+                            </select>
+                        </div>
+
+                        <!-- Speed & Speech -->
+                        <div class="flex items-center justify-between gap-2 bg-slate-800/80 p-2 rounded-xl border border-slate-700">
+                            <div class="flex items-center gap-2 text-xs text-slate-300">
+                                <i class="fa-solid fa-gauge-high text-amber-400"></i>
+                                <span>Kecepatan:</span>
+                                <select id="draw-speed" onchange="updateAutoSpeed()" class="bg-slate-900 text-amber-300 border border-slate-700 rounded-lg px-2 py-1 focus:outline-none">
+                                    <option value="5000">Sangat Lambat (5s)</option>
+                                    <option value="3000">Lambat (3s)</option>
+                                    <option value="2000" selected>Normal (2s)</option>
+                                    <option value="1000">Cepat (1s)</option>
+                                </select>
+                            </div>
+                            <label class="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                                <input type="checkbox" id="speech-toggle" checked class="accent-amber-400 rounded">
+                                <span>Bacakan Suara</span>
+                            </label>
+                        </div>
+
+                        <!-- Putar Angka & Otomatis Buttons -->
+                        <div class="flex gap-2">
+                            <button id="btn-draw" onclick="drawNextNumber()" class="flex-1 py-3 px-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold rounded-xl text-base shadow-lg shadow-emerald-500/25 transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-dice"></i> Putar Angka
+                            </button>
+                            <button id="btn-auto-draw" onclick="toggleAutoDraw()" class="py-3 px-4 bg-slate-800 hover:bg-slate-700 border border-slate-600 text-amber-400 font-bold rounded-xl text-sm transition flex items-center gap-1.5">
+                                <i id="auto-icon" class="fa-solid fa-play"></i> <span id="auto-text">Otomatis</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Drawn Numbers History Bar -->
+                    <div class="w-full mt-4 pt-3 border-t border-slate-700/60">
+                        <div class="flex justify-between text-xs text-slate-400 mb-2">
+                            <span>Angka Terakhir Keluar:</span>
+                            <span id="drawn-count-label">0 / 75</span>
+                        </div>
+                        <div id="drawn-history" class="flex gap-1.5 overflow-x-auto pb-2 min-h-[44px] items-center">
+                            <span class="text-xs text-slate-500 italic">Belum ada angka dikocok.</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Log Panel (Admin Only) -->
+                <div id="admin-log-panel" class="bg-slate-900/60 backdrop-blur-md p-4 rounded-2xl border border-slate-700/50 shadow-xl hidden">
+                    <h2 class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-2">Catatan Pengocokan</h2>
+                    <div id="game-log" class="h-24 overflow-y-auto space-y-1.5 text-xs text-slate-300 pr-1">
+                        <div class="text-slate-500 italic">Tekan "Putar Angka" untuk memutar nomor pertama.</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right / Main Bingo Board Section (Player Only) -->
+            <div id="player-board-panel" class="lg:col-span-7 bg-slate-900/60 backdrop-blur-md p-4 md:p-6 rounded-2xl border border-slate-700/50 shadow-xl flex flex-col items-center justify-center">
+                <div class="w-full flex justify-between items-center mb-4 pb-3 border-b border-slate-700/60">
+                    <div class="text-lg md:text-xl font-bold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-table-cells text-amber-400"></i> Papan Bingo Anda
+                    </div>
+                    <button onclick="shuffleBoard()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-lg text-xs font-semibold text-slate-300 transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-shuffle text-amber-400"></i> Ganti Papan
+                    </button>
+                </div>
+
+                <div class="w-full aspect-square max-w-[480px] flex flex-col gap-2 p-2 bg-slate-950/70 rounded-2xl border border-slate-800 shadow-2xl">
+                    <div class="grid grid-cols-5 gap-2 text-center">
+                        <div class="py-1 font-black text-amber-400 text-lg md:text-xl">B</div>
+                        <div class="py-1 font-black text-pink-400 text-lg md:text-xl">I</div>
+                        <div class="py-1 font-black text-indigo-400 text-lg md:text-xl">N</div>
+                        <div class="py-1 font-black text-emerald-400 text-lg md:text-xl">G</div>
+                        <div class="py-1 font-black text-cyan-400 text-lg md:text-xl">O</div>
+                    </div>
+                    <div class="grid grid-cols-5 gap-2 md:gap-2.5 flex-1" id="bingo-board-grid"></div>
+                </div>
+            </div>
+        </main>
     </div>
 
-    <!-- Firebase SDK & Logika Utama -->
+    <!-- JavaScript Logika, Firebase & JSON Auth -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc, onSnapshot, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-        // Konfigurasi Firebase Anda
         const firebaseConfig = {
             apiKey: "AIzaSyAZKhxhSwmsEBjZhTy2tbH2nDE",
             authDomain: "bingo-project-bad7a.firebaseapp.com",
             projectId: "bingo-project-bad7a",
             storageBucket: "bingo-project-bad7a.appspot.com",
             messagingSenderId: "30456898715",
-            appId: "1:30456898715:web:07e285355f84b",
-            measurementId: "G-9FP2RHNGRY"
+            appId: "1:30456898715:web:07e285355f84b"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const roomRef = doc(db, "rooms", "main_room");
 
-        let currentUser = { name: "", role: "" };
-        let boardData = [];
-        let markedCells = Array(25).fill(false);
+        const JSON_URLS = {
+            admin: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingoadmin.json',
+            pemain: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingopemain.json',
+            penonton: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingopenonton.json'
+        };
+
+        let currentUser = null;
+        let board = Array.from({ length: 5 }, () => Array(5).fill(0));
+        let markedState = Array.from({ length: 5 }, () => Array(5).fill(false));
         let drawnNumbers = [];
-        let gameState = { status: "lobby", players: [], currentNumber: null, winner: null };
+        let lastSpokenNum = null;
+        let soundEnabled = true;
+        let autoDrawInterval = null;
+        let selectedWinMode = '5lines';
+        let gameStatus = 'lobby';
+        let currentWinner = null;
 
-        document.getElementById('role-select').addEventListener('change', (e) => {
-            const adminBox = document.getElementById('admin-code-box');
-            adminBox.classList.toggle('hidden', e.target.value !== 'admin');
-        });
+        const WIN_MODE_LABELS = {
+            '5lines': '5 Garis (B-I-N-G-O)',
+            '1line': '1 Garis Bebas',
+            'vert_horiz': 'Vertikal + Horizontal',
+            'vertical': '1 Garis Vertikal',
+            'horizontal': '1 Garis Horizontal',
+            'fullhouse': 'Full House (Semua)'
+        };
 
-        window.handleLogin = async function() {
-            const name = document.getElementById('username-input').value.trim();
-            const role = document.getElementById('role-select').value;
-            
-            if (!name) { alert("Silakan masukkan nama Anda!"); return; }
-            if (role === 'admin' && document.getElementById('admin-pass').value !== "12345") {
-                alert("Kode akses Admin salah!"); return;
+        async function fetchUserData(url) {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error("Gagal ambil JSON");
+                const data = await response.json();
+                return Array.isArray(data) ? data : (data.users || [data]);
+            } catch (e) {
+                console.warn("Gagal memuat JSON:", e);
+                return [];
             }
-
-            currentUser = { name, role };
-            document.getElementById('login-screen').classList.add('hidden');
-            
-            let snap = await getDoc(roomRef);
-            if (!snap.exists()) {
-                await setDoc(roomRef, { status: "lobby", players: [], drawnNumbers: [], currentNumber: null, winner: null });
-            } else {
-                let data = snap.data();
-                if (role === 'player' && !data.players.some(p => p.name === name)) {
-                    data.players.push({ name, time: Date.now() });
-                    await updateDoc(roomRef, { players: data.players });
-                }
-            }
-
-            listenToRoom();
         }
 
-        function listenToRoom() {
+        window.handleLogin = async function(e) {
+            e.preventDefault();
+            const userInput = document.getElementById('username').value.trim();
+            const passInput = document.getElementById('password').value.trim();
+            const errorElem = document.getElementById('login-error');
+
+            errorElem.textContent = 'Memeriksa kredensial dari server...';
+            errorElem.classList.remove('hidden');
+
+            try {
+                const [adminList, pemainList, penontonList] = await Promise.all([
+                    fetchUserData(JSON_URLS.admin),
+                    fetchUserData(JSON_URLS.pemain),
+                    fetchUserData(JSON_URLS.penonton)
+                ]);
+
+                const checkMatch = (list, roleName) => {
+                    if (!list || !Array.isArray(list)) return null;
+                    const found = list.find(u => {
+                        const uname = u.username || u.user || u.name;
+                        const pass = u.password || u.pass;
+                        return uname && uname.toLowerCase() === userInput.toLowerCase() && String(pass) === passInput;
+                    });
+                    return found ? { ...found, role: roleName } : null;
+                };
+
+                const matchedUser = checkMatch(adminList, 'admin') ||
+                                    checkMatch(pemainList, 'player') ||
+                                    checkMatch(penontonList, 'spectator');
+
+                if (matchedUser) {
+                    errorElem.classList.add('hidden');
+                    await enterSession(matchedUser);
+                } else {
+                    errorElem.textContent = 'Username atau password salah / tidak terdaftar di JSON!';
+                }
+            } catch (err) {
+                errorElem.textContent = 'Gagal memeriksa data JSON. Periksa koneksi internet Anda!';
+            }
+        };
+
+        window.loginAsGuest = async function() {
+            await enterSession({
+                username: "Penonton",
+                role: "spectator",
+                displayName: "Penonton"
+            });
+        };
+
+        async function enterSession(user) {
+            currentUser = user;
+            const displayName = user.displayName || user.username || "Pengguna";
+
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('lobby-user-name').textContent = displayName;
+            document.getElementById('lobby-user-role').textContent = user.role === 'admin' ? 'Admin' : (user.role === 'spectator' ? 'Penonton' : 'Pemain');
+            document.getElementById('logged-user-display').textContent = displayName;
+
+            const badge = document.getElementById('user-role-badge');
+            const callerPanel = document.getElementById('caller-panel');
+            const playerBoardPanel = document.getElementById('player-board-panel');
+            const adminControls = document.getElementById('admin-controls');
+            const adminLogPanel = document.getElementById('admin-log-panel');
+            const btnResetLobby = document.getElementById('btn-reset-lobby');
+
+            if (user.role === 'admin') {
+                badge.textContent = 'Admin';
+                badge.className = 'px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full text-[10px] font-bold';
+                callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full";
+                playerBoardPanel.classList.add('hidden');
+                adminControls.classList.remove('hidden');
+                adminLogPanel.classList.remove('hidden');
+                btnResetLobby.classList.remove('hidden');
+                btnResetLobby.classList.add('flex');
+            } else if (user.role === 'spectator') {
+                badge.textContent = 'Penonton (Spectator)';
+                badge.className = 'px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-[10px] font-bold';
+                callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full";
+                playerBoardPanel.classList.add('hidden');
+                adminControls.classList.add('hidden');
+                adminLogPanel.classList.add('hidden');
+            } else {
+                badge.textContent = 'Pemain';
+                badge.className = 'px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-[10px] font-bold';
+                callerPanel.className = "lg:col-span-5 flex flex-col gap-4";
+                playerBoardPanel.classList.remove('hidden');
+                adminControls.classList.add('hidden');
+                adminLogPanel.classList.add('hidden');
+            }
+
+            // Pastikan dokumen room ada & masuk ke status lobby jika belum playing
+            const snap = await getDoc(roomRef);
+            if (!snap.exists()) {
+                await setDoc(roomRef, {
+                    status: 'lobby',
+                    players: user.role === 'player' ? [displayName] : [],
+                    drawnNumbers: [],
+                    currentNumber: null,
+                    winMode: '5lines',
+                    winner: null
+                });
+            } else {
+                const data = snap.data();
+                const currentPlayers = Array.isArray(data.players) ? data.players : [];
+                if (user.role === 'player' && !currentPlayers.includes(displayName)) {
+                    currentPlayers.push(displayName);
+                    await updateDoc(roomRef, { players: currentPlayers });
+                }
+            }
+
+            initBoard();
+            listenToFirebase();
+        }
+
+        function listenToFirebase() {
             onSnapshot(roomRef, (docSnap) => {
                 if (!docSnap.exists()) return;
-                gameState = docSnap.data();
+                const data = docSnap.data();
 
-                if (gameState.winner) {
-                    document.getElementById('winner-banner').classList.remove('hidden');
-                    document.getElementById('winner-name-text').innerText = gameState.winner;
-                    if (currentUser.role === 'admin') {
-                        document.getElementById('draw-btn').disabled = true;
-                        document.getElementById('draw-btn').classList.add('opacity-50', 'cursor-not-allowed');
-                    }
-                }
+                const prevStatus = gameStatus;
+                gameStatus = data.status || 'lobby';
+                const players = Array.isArray(data.players) ? data.players : [];
+                drawnNumbers = Array.isArray(data.drawnNumbers) ? data.drawnNumbers : [];
+                const currNum = data.currentNumber;
+                selectedWinMode = data.winMode || '5lines';
+                currentWinner = data.winner || null;
 
-                if (gameState.status === "lobby") {
+                // Update tampilan mode menang
+                document.getElementById('active-mode-badge').textContent = `Mode Menang: ${WIN_MODE_LABELS[selectedWinMode] || selectedWinMode}`;
+                const modeSelect = document.getElementById('win-mode-select');
+                if (modeSelect) modeSelect.value = selectedWinMode;
+
+                // Routing tampilan Lobby vs Playing
+                if (gameStatus === 'lobby') {
+                    stopAutoDraw();
+                    lastSpokenNum = null;
                     document.getElementById('lobby-screen').classList.remove('hidden');
-                    document.getElementById('game-screen').classList.add('hidden');
-                    
+                    document.getElementById('game-wrapper').classList.add('hidden');
+                    document.getElementById('game-wrapper').classList.remove('flex');
+
+                    document.getElementById('lobby-player-count').textContent = `${players.length} Pemain`;
                     const listEl = document.getElementById('lobby-player-list');
-                    const badgeEl = document.getElementById('player-count-badge');
-                    badgeEl.innerText = `${gameState.players.length} Pemain`;
-                    
-                    if (gameState.players.length === 0) {
-                        listEl.innerHTML = `<div class="text-slate-500 text-center italic mt-12">Belum ada pemain yang masuk...</div>`;
+                    if (players.length === 0) {
+                        listEl.innerHTML = '<div class="text-slate-500 text-center italic mt-14">Menunggu pemain masuk ke lobby...</div>';
                     } else {
-                        listEl.innerHTML = gameState.players.map(p => `<div class="bg-slate-800 p-2.5 rounded-lg flex justify-between items-center border border-slate-700"><span>👤 ${p.name}</span><span class="text-xs text-emerald-400">Siap</span></div>`).join('');
+                        listEl.innerHTML = players.map(p => `
+                            <div class="bg-slate-900/90 border border-slate-700/80 px-3 py-2 rounded-xl flex justify-between items-center">
+                                <span class="font-semibold text-slate-100"><i class="fa-solid fa-user-check text-emerald-400 mr-2"></i>${p}</span>
+                                <span class="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full font-bold">SIAP</span>
+                            </div>
+                        `).join('');
                     }
 
-                    if (currentUser.role === 'admin') {
+                    if (currentUser && currentUser.role === 'admin') {
                         document.getElementById('admin-lobby-controls').classList.remove('hidden');
-                        document.getElementById('player-lobby-waiting').classList.add('hidden');
+                        document.getElementById('waiting-lobby-box').classList.add('hidden');
                     } else {
                         document.getElementById('admin-lobby-controls').classList.add('hidden');
-                        document.getElementById('player-lobby-waiting').classList.remove('hidden');
+                        document.getElementById('waiting-lobby-box').classList.remove('hidden');
                     }
-                } else if (gameState.status === "playing") {
-                    document.getElementById('lobby-screen').classList.add('hidden');
-                    document.getElementById('game-screen').classList.remove('hidden');
-                    
-                    document.getElementById('user-role-label').innerText = `Peran: ${currentUser.role.toUpperCase()} (${currentUser.name})`;
-                    if (currentUser.role === 'admin') {
-                        document.getElementById('admin-control-panel').classList.remove('hidden');
+                    return;
+                }
+
+                // Status === 'playing'
+                if (prevStatus === 'lobby') {
+                    initBoard();
+                }
+
+                document.getElementById('lobby-screen').classList.add('hidden');
+                document.getElementById('game-wrapper').classList.remove('hidden');
+                document.getElementById('game-wrapper').classList.add('flex');
+
+                // Update Winner Banner
+                const winBanner = document.getElementById('winner-banner');
+                if (currentWinner) {
+                    winBanner.classList.remove('hidden');
+                    document.getElementById('winner-name-display').textContent = currentWinner;
+                    stopAutoDraw();
+                } else {
+                    winBanner.classList.add('hidden');
+                }
+
+                // Update Bola Pengocok
+                const ballLetterEl = document.getElementById('ball-letter');
+                const ballNumberEl = document.getElementById('ball-number');
+                if (currNum) {
+                    const letter = getBingoLetter(currNum);
+                    ballLetterEl.innerText = letter;
+                    ballNumberEl.innerText = currNum;
+
+                    if (lastSpokenNum !== currNum) {
+                        lastSpokenNum = currNum;
+                        speakDrawnNumber(letter, currNum);
+                        addLogEntry(`Keluar angka: <strong class="text-amber-300">${letter}-${currNum}</strong>`);
                     }
-                    
-                    document.getElementById('current-drawn-display').innerText = gameState.currentNumber || "-";
-                    drawnNumbers = gameState.drawnNumbers || [];
-                    renderBoard();
+                } else {
+                    ballLetterEl.innerText = 'READY';
+                    ballNumberEl.innerText = '--';
+                    document.getElementById('game-log').innerHTML = '<div class="text-slate-500 italic">Tekan "Putar Angka" untuk memutar nomor pertama.</div>';
+                }
+
+                // Update Riwayat Angka Keluar
+                document.getElementById('drawn-count-label').innerText = `${drawnNumbers.length} / 75`;
+                const histEl = document.getElementById('drawn-history');
+                if (drawnNumbers.length === 0) {
+                    histEl.innerHTML = '<span class="text-xs text-slate-500 italic">Belum ada angka dikocok.</span>';
+                } else {
+                    histEl.innerHTML = [...drawnNumbers].reverse().map(n => {
+                        const l = getBingoLetter(n);
+                        return `<div class="px-2.5 h-8 rounded-full bg-gradient-to-tr from-amber-500 to-yellow-400 text-slate-950 font-extrabold flex items-center justify-center text-xs shrink-0 shadow">${l}-${n}</div>`;
+                    }).join('');
                 }
             });
         }
 
-        window.startActiveGame = async function() {
-            await updateDoc(roomRef, { status: "playing" });
-        }
+        // Admin mulai permainan dari Lobby (otomatis reset angka ke 0)
+        window.startMatchFromLobby = async function() {
+            await updateDoc(roomRef, {
+                status: 'playing',
+                drawnNumbers: [],
+                currentNumber: null,
+                winner: null
+            });
+        };
+
+        // Admin reset permainan kembali ke Lobby
+        window.resetToLobby = async function() {
+            stopAutoDraw();
+            const currentName = currentUser ? (currentUser.displayName || currentUser.username) : null;
+            await setDoc(roomRef, {
+                status: 'lobby',
+                players: [],
+                drawnNumbers: [],
+                currentNumber: null,
+                winMode: selectedWinMode,
+                winner: null
+            });
+        };
+
+        window.changeWinMode = async function(newMode) {
+            selectedWinMode = newMode;
+            await updateDoc(roomRef, { winMode: newMode });
+        };
 
         window.drawNextNumber = async function() {
-            if (gameState.winner) return;
+            if (currentWinner) return;
             let available = [];
             for (let i = 1; i <= 75; i++) {
                 if (!drawnNumbers.includes(i)) available.push(i);
             }
-            if (available.length === 0) { alert("Semua angka sudah dikocok!"); return; }
-            
-            let nextNum = available[Math.floor(Math.random() * available.length)];
-            drawnNumbers.push(nextNum);
-            
-            await updateDoc(roomRef, {
-                drawnNumbers: drawnNumbers,
-                currentNumber: nextNum
-            });
-        }
-
-        function generateBoard() {
-            let board = [];
-            let ranges = [[1,15], [16,30], [31,45], [46,60], [61,75]];
-            for (let col = 0; col < 5; col++) {
-                let nums = [];
-                while(nums.length < 5) {
-                    let r = Math.floor(Math.random() * (ranges[col][1] - ranges[col][0] + 1)) + ranges[col][0];
-                    if(!nums.includes(r)) nums.push(r);
-                }
-                for(let row = 0; row < 5; row++) {
-                    board[row * 5 + col] = (row === 2 && col === 2) ? "FREE" : nums[row];
-                }
-            }
-            markedCells[12] = true;
-            return board;
-        }
-
-        boardData = generateBoard();
-
-        function renderBoard() {
-            const boardEl = document.getElementById('bingo-board');
-            const letters = ['B', 'I', 'N', 'G', 'O'];
-            let html = ``;
-            
-            letters.forEach(l => {
-                html += `<div class="bg-emerald-600 font-bold text-center py-2 rounded-lg text-sm">${l}</div>`;
-            });
-
-            boardData.forEach((val, idx) => {
-                let isMarked = markedCells[idx];
-                let isFree = val === "FREE";
-                html += `<div onclick="markCell(${idx})" class="bingo-cell bg-slate-900 border border-slate-700 rounded-xl flex items-center justify-center font-bold text-sm cursor-pointer select-none ${isMarked || isFree ? 'marked' : ''}">${val}</div>`;
-            });
-            boardEl.innerHTML = html;
-        }
-
-        window.markCell = async function(idx) {
-            if (boardData[idx] === "FREE" || gameState.winner) return;
-            let num = boardData[idx];
-            if (!drawnNumbers.includes(num)) {
-                alert("Angka ini belum dikocok oleh Admin!");
+            if (available.length === 0) {
+                stopAutoDraw();
+                alert("Semua 75 angka sudah dikocok!");
                 return;
             }
-            markedCells[idx] = !markedCells[idx];
-            renderBoard();
-            checkWinCondition();
+
+            const nextNum = available[Math.floor(Math.random() * available.length)];
+            const updatedList = [...drawnNumbers, nextNum];
+
+            await updateDoc(roomRef, {
+                drawnNumbers: updatedList,
+                currentNumber: nextNum
+            });
+        };
+
+        window.toggleAutoDraw = function() {
+            if (autoDrawInterval) {
+                stopAutoDraw();
+            } else {
+                const speed = parseInt(document.getElementById('draw-speed').value, 10) || 2000;
+                document.getElementById('auto-icon').className = 'fa-solid fa-pause';
+                document.getElementById('auto-text').textContent = 'Berhenti';
+                document.getElementById('btn-auto-draw').classList.add('border-amber-400', 'bg-amber-500/20');
+                drawNextNumber();
+                autoDrawInterval = setInterval(drawNextNumber, speed);
+            }
+        };
+
+        window.updateAutoSpeed = function() {
+            if (autoDrawInterval) {
+                stopAutoDraw();
+                toggleAutoDraw();
+            }
+        };
+
+        function stopAutoDraw() {
+            if (autoDrawInterval) {
+                clearInterval(autoDrawInterval);
+                autoDrawInterval = null;
+            }
+            const icon = document.getElementById('auto-icon');
+            const text = document.getElementById('auto-text');
+            const btn = document.getElementById('btn-auto-draw');
+            if (icon) icon.className = 'fa-solid fa-play';
+            if (text) text.textContent = 'Otomatis';
+            if (btn) btn.classList.remove('border-amber-400', 'bg-amber-500/20');
         }
 
-        function checkWinCondition() {
-            let winPatterns = [
-                [0,1,2,3,4], [5,6,7,8,9], [10,11,12,13,14], [15,16,17,18,19], [20,21,22,23,24],
-                [0,5,10,15,20], [1,6,11,16,21], [2,7,12,17,22], [3,8,13,18,23], [4,9,14,19,24],
-                [0,6,12,18,24], [4,8,12,16,20]
-            ];
+        function addLogEntry(htmlText) {
+            const logEl = document.getElementById('game-log');
+            if (!logEl) return;
+            if (logEl.querySelector('.italic')) logEl.innerHTML = '';
+            const item = document.createElement('div');
+            item.className = 'border-b border-slate-800 pb-1';
+            item.innerHTML = `<span class="text-slate-500">[${new Date().toLocaleTimeString('id-ID')}]</span> ${htmlText}`;
+            logEl.prepend(item);
+        }
 
-            for (let pattern of winPatterns) {
-                if (pattern.every(i => markedCells[i])) {
-                    declareWinner();
-                    break;
+        function speakDrawnNumber(letter, num) {
+            if (!soundEnabled) return;
+            const speechToggle = document.getElementById('speech-toggle');
+            if (speechToggle && !speechToggle.checked) return;
+
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(`${letter}, ${num}`);
+                utterance.lang = 'id-ID';
+                utterance.rate = 1.0;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function getBingoLetter(num) {
+            if (num <= 15) return 'B';
+            if (num <= 30) return 'I';
+            if (num <= 45) return 'N';
+            if (num <= 60) return 'G';
+            return 'O';
+        }
+
+        function generateClassicBoard() {
+            const ranges = [[1, 15], [16, 30], [31, 45], [46, 60], [61, 75]];
+            const grid = Array.from({ length: 5 }, () => Array(5).fill(0));
+            for (let c = 0; c < 5; c++) {
+                const [min, max] = ranges[c];
+                let nums = [];
+                while (nums.length < 5) {
+                    let r = Math.floor(Math.random() * (max - min + 1)) + min;
+                    if (!nums.includes(r)) nums.push(r);
+                }
+                for (let r = 0; r < 5; r++) {
+                    grid[r][c] = nums[r];
+                }
+            }
+            return grid;
+        }
+
+        function initBoard() {
+            board = generateClassicBoard();
+            markedState = Array.from({ length: 5 }, () => Array(5).fill(false));
+            markedState[2][2] = true; // FREE tengah
+            renderBoardGrid();
+        }
+
+        window.shuffleBoard = function() {
+            if (drawnNumbers.length > 0) {
+                alert("Tidak bisa mengganti papan saat angka sudah mulai dikocok!");
+                return;
+            }
+            initBoard();
+        };
+
+        function renderBoardGrid() {
+            const gridContainer = document.getElementById('bingo-board-grid');
+            if (!gridContainer) return;
+            gridContainer.innerHTML = '';
+
+            for (let r = 0; r < 5; r++) {
+                for (let c = 0; c < 5; c++) {
+                    const num = board[r][c];
+                    const isFree = (r === 2 && c === 2);
+                    const isMarked = markedState[r][c];
+
+                    const cell = document.createElement('button');
+                    cell.className = `bingo-cell rounded-xl font-black text-base md:text-lg flex items-center justify-center border border-slate-700/80 bg-slate-900/90 text-slate-100 ${isFree ? 'free-space' : (isMarked ? 'marked' : '')}`;
+                    cell.textContent = isFree ? 'FREE' : num;
+
+                    cell.onclick = async () => {
+                        if (isFree || currentWinner) return;
+                        if (!drawnNumbers.includes(num)) {
+                            alert(`Angka ${num} belum dikocok oleh Admin!`);
+                            return;
+                        }
+                        markedState[r][c] = !markedState[r][c];
+                        renderBoardGrid();
+                        await checkWinCondition();
+                    };
+                    gridContainer.appendChild(cell);
                 }
             }
         }
 
-        async function declareWinner() {
-            if (gameState.winner) return;
-            await updateDoc(roomRef, { winner: currentUser.name });
+        async function checkWinCondition() {
+            let horizCount = 0;
+            let vertCount = 0;
+            let diagCount = 0;
+
+            for (let r = 0; r < 5; r++) {
+                if (markedState[r].every(Boolean)) horizCount++;
+            }
+            for (let c = 0; c < 5; c++) {
+                if ([0, 1, 2, 3, 4].every(r => markedState[r][c])) vertCount++;
+            }
+            if ([0, 1, 2, 3, 4].every(i => markedState[i][i])) diagCount++;
+            if ([0, 1, 2, 3, 4].every(i => markedState[i][4 - i])) diagCount++;
+
+            const totalLines = horizCount + vertCount + diagCount;
+            const allMarked = markedState.every(row => row.every(Boolean));
+
+            let isWin = false;
+            if (selectedWinMode === '5lines' && totalLines >= 5) isWin = true;
+            else if (selectedWinMode === '1line' && totalLines >= 1) isWin = true;
+            else if (selectedWinMode === 'vert_horiz' && horizCount >= 1 && vertCount >= 1) isWin = true;
+            else if (selectedWinMode === 'vertical' && vertCount >= 1) isWin = true;
+            else if (selectedWinMode === 'horizontal' && horizCount >= 1) isWin = true;
+            else if (selectedWinMode === 'fullhouse' && allMarked) isWin = true;
+
+            if (isWin && !currentWinner && currentUser) {
+                const winnerName = currentUser.displayName || currentUser.username;
+                await updateDoc(roomRef, { winner: winnerName });
+            }
         }
 
+        window.toggleSound = function() {
+            soundEnabled = !soundEnabled;
+            const icon = document.getElementById('sound-icon');
+            const text = document.getElementById('sound-text');
+            if (soundEnabled) {
+                icon.className = 'fa-solid fa-volume-high text-amber-400';
+                text.textContent = 'Suara: On';
+            } else {
+                icon.className = 'fa-solid fa-volume-xmark text-slate-500';
+                text.textContent = 'Suara: Off';
+                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+            }
+        };
+
         window.logout = function() {
+            stopAutoDraw();
             location.reload();
-        }
+        };
     </script>
 </body>
 </html>
