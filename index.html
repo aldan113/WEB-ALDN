@@ -185,11 +185,10 @@
             </div>
         </header>
 
-        <!-- WINNER NOTIFICATION POPUP (Tanpa Animasi Naik Turun & Dilengkapi Tombol Silang Kecil X) -->
+        <!-- WINNER NOTIFICATION POPUP -->
         <div id="winner-popup-overlay" class="hidden fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
             <div class="bg-gradient-to-tr from-amber-500 via-pink-600 to-indigo-600 p-1 rounded-3xl shadow-2xl max-w-md w-full relative">
                 <div class="bg-slate-900 p-6 md:p-8 rounded-[22px] text-center space-y-4 relative">
-                    <!-- Tombol Silang Kecil di Pojok Kanan Atas -->
                     <button onclick="closeWinnerPopup()" class="absolute top-3 right-3 w-8 h-8 bg-slate-800 hover:bg-rose-600/80 text-slate-400 hover:text-white rounded-full flex items-center justify-center text-sm transition">
                         <i class="fa-solid fa-xmark"></i>
                     </button>
@@ -366,7 +365,13 @@
                 const response = await fetch(url);
                 if (!response.ok) throw new Error("Gagal ambil JSON");
                 const data = await response.json();
-                return Array.isArray(data) ? data : (data.codes || data.users || [data]);
+                
+                // Mengambil array codes atau users lalu membersihkan titik (.) yang tidak sengaja terbawa di akhir string kode
+                let list = Array.isArray(data) ? data : (data.codes || data.users || [data]);
+                return list.map(item => {
+                    let val = typeof item === 'string' ? item : (item.code || item.accessCode || item.password || '');
+                    return String(val).trim().replace(/\.$/, ''); // Menghapus titik di akhir jika ada
+                });
             } catch (e) {
                 console.warn("Gagal memuat JSON:", e);
                 return [];
@@ -377,7 +382,7 @@
             e.preventDefault();
             const userInput = document.getElementById('username').value.trim();
             const role = document.getElementById('role-select').value;
-            const codeInput = document.getElementById('access-code').value.trim();
+            const codeInput = document.getElementById('access-code').value.trim().replace(/\.$/, '');
             const errorElem = document.getElementById('login-error');
 
             errorElem.textContent = 'Memeriksa kode akses dari server...';
@@ -393,15 +398,9 @@
                 let isValidCode = false;
 
                 if (role === 'admin') {
-                    isValidCode = adminList.some(item => {
-                        const code = item.code || item.accessCode || item.password;
-                        return String(code).trim() === codeInput;
-                    });
+                    isValidCode = adminList.includes(codeInput);
                 } else if (role === 'player') {
-                    isValidCode = pemainList.some(item => {
-                        const code = item.code || item.accessCode || item.password;
-                        return String(code).trim() === codeInput;
-                    });
+                    isValidCode = pemainList.includes(codeInput);
 
                     if (isValidCode) {
                         const activeCodes = JSON.parse(localStorage.getItem('bingo_active_codes') || '[]');
