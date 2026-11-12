@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Permainan Papan BINGO Klasik</title>
-    <!-- Tailwind CSS CDN fita-->
+    <!-- Tailwind CSS CDN kina-->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -80,7 +80,7 @@
                 <i class="fa-solid fa-bullseye"></i>
             </div>
             <h1 class="text-2xl font-black bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-                BINGO KLASIK 756
+                BINGO KLASIK 75
             </h1>
             <p class="text-xs text-slate-400 mt-1">Silakan masuk untuk mulai bermain atau menonton</p>
         </div>
@@ -176,7 +176,7 @@
                 </div>
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-                        BINGO KLASIK 756
+                        BINGO KLASIK 75
                     </h1>
                     <p class="text-xs text-slate-400 flex items-center gap-2">
                         <span>Pengguna: <strong id="logged-user-display" class="text-amber-300">Player</strong></span>
@@ -344,6 +344,18 @@
             if (data.type === 'PLAYER_JOINED') {
                 if (currentUser && currentUser.role === 'admin') {
                     registerPlayerInLobby(data.username, data.displayName);
+                    // Kirim konfirmasi balik ke pemain bahwa Admin ada di lobby
+                    broadcastState('ADMIN_PING_RESPONSE', {
+                        players: connectedPlayers
+                    });
+                }
+            } else if (data.type === 'REQUEST_LOBBY_STATUS') {
+                // Saat Admin baru masuk atau merefresh, minta semua pemain yang sedang menunggu untuk lapor balik
+                if (currentUser && currentUser.role !== 'admin') {
+                    broadcastState('PLAYER_JOINED', {
+                        username: currentUser.username,
+                        displayName: currentUser.displayName || currentUser.username
+                    });
                 }
             } else if (data.type === 'START_GAME') {
                 if (currentUser && currentUser.role !== 'admin') {
@@ -394,6 +406,7 @@
         let soundEnabled = true;
         let autoDrawInterval = null;
         let selectedWinMode = '5lines';
+        let lobbyHeartbeatInterval = null;
 
         // Web Audio Synthesizer setup for Sound Effects
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -522,8 +535,19 @@
                 // Admin enters Lobby View first
                 document.getElementById('admin-lobby').classList.remove('hidden');
                 document.getElementById('admin-lobby').classList.add('flex');
+                
+                // Panggil seluruh pemain yang mungkin sudah ada di ruang tunggu
+                broadcastState('REQUEST_LOBBY_STATUS');
+
+                // Polling periodik untuk mendeteksi pemain secara kontinu
+                if (lobbyHeartbeatInterval) clearInterval(lobbyHeartbeatInterval);
+                lobbyHeartbeatInterval = setInterval(() => {
+                    broadcastState('REQUEST_LOBBY_STATUS');
+                }, 2000);
+
             } else {
                 // Player & Spectator enter Waiting View first and notify Admin
+                document.getElementById('player-waiting-screen').classList.remove('hidden');
                 document.getElementById('player-waiting-screen').classList.remove('hidden');
                 document.getElementById('player-waiting-screen').classList.add('flex');
                 
@@ -532,6 +556,15 @@
                     username: user.username,
                     displayName: user.displayName || user.username
                 });
+
+                // Kirim sinyal berkala setiap 2 detik agar Admin selalu mendeteksi pemain ini
+                if (lobbyHeartbeatInterval) clearInterval(lobbyHeartbeatInterval);
+                lobbyHeartbeatInterval = setInterval(() => {
+                    broadcastState('PLAYER_JOINED', {
+                        username: user.username,
+                        displayName: user.displayName || user.username
+                    });
+                }, 2000);
             }
         }
 
@@ -570,12 +603,20 @@
         }
 
         function adminStartGame() {
+            if (lobbyHeartbeatInterval) {
+                clearInterval(lobbyHeartbeatInterval);
+                lobbyHeartbeatInterval = null;
+            }
             // Broadcast START_GAME to all waiting players & spectators
             broadcastState('START_GAME');
             openMainGameInterface();
         }
 
         function openMainGameInterface() {
+            if (lobbyHeartbeatInterval) {
+                clearInterval(lobbyHeartbeatInterval);
+                lobbyHeartbeatInterval = null;
+            }
             document.getElementById('admin-lobby').classList.add('hidden');
             document.getElementById('admin-lobby').classList.remove('flex');
             document.getElementById('player-waiting-screen').classList.add('hidden');
