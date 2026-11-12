@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Permainan Papan BINGO Klasik</title>
-    <!-- Tailwind CSS CDN -->
+    <!-- Tailwind CSS CDN aldn-->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -278,6 +278,9 @@
             penonton: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingopenonton.json'
         };
 
+        // --- Real-time Communication Channel (BroadcastChannel API) ---
+        const bingoChannel = new BroadcastChannel('bingo_game_sync_channel');
+
         // Helper Fetch JSON dengan Fallback Data
         async function fetchUserData(url, fallbackRole, defaultName) {
             try {
@@ -305,6 +308,22 @@
 
         // Web Audio Synthesizer setup for Sound Effects
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Listen for Real-Time Sync Events from Admin
+        bingoChannel.onmessage = (event) => {
+            const data = event.data;
+            if (!data) return;
+
+            if (data.type === 'DRAW_NUMBER') {
+                applyDrawnNumber(data.drawnNum, data.letter, data.drawnNumbersList);
+            } else if (data.type === 'CHANGE_WIN_MODE') {
+                selectedWinMode = data.winMode;
+                logMessage(`Admin mengubah mode kemenangan ke: <strong>${getWinModeLabel(selectedWinMode)}</strong>`, 'text-amber-300');
+                checkBingoProgress();
+            } else if (data.type === 'RESET_GAME') {
+                applyGameReset();
+            }
+        };
 
         function playSound(type) {
             if (!soundEnabled) return;
@@ -561,6 +580,20 @@
             renderBoardGrid();
         }
 
+        function applyGameReset() {
+            drawnNumbers = [];
+            isGameOver = false;
+            markedState = Array.from({ length: 5 }, () => Array(5).fill(false));
+            markedState[2][2] = true;
+
+            document.getElementById('ball-letter').innerText = 'READY';
+            document.getElementById('ball-number').innerText = '--';
+            document.getElementById('drawn-history').innerHTML = '<span class="text-xs text-slate-500 italic">Belum ada angka dikocok.</span>';
+            document.getElementById('drawn-count-label').innerText = '0 / 75';
+            
+            renderBoardGrid();
+        }
+
         function renderBoardGrid() {
             const gridContainer = document.getElementById('bingo-board-grid');
             if (!gridContainer) return;
@@ -605,6 +638,7 @@
             initGame();
         }
 
+        // Action executed by Admin to draw numbers and broadcast to all connected clients
         function drawNextNumber() {
             if (isGameOver) return;
             if (availableNumbersToDraw.length === 0) {
@@ -617,9 +651,25 @@
             const drawnNum = availableNumbersToDraw.splice(randomIndex, 1)[0];
             drawnNumbers.push(drawnNum);
 
-            playSound('draw');
-
             const letter = getBingoLetter(drawnNum);
+
+            // Broadcast number draw event to Players & Spectators
+            bingoChannel.postMessage({
+                type: 'DRAW_NUMBER',
+                drawnNum: drawnNum,
+                letter: letter,
+                drawnNumbersList: [...drawnNumbers]
+            });
+
+            // Update local admin UI
+            applyDrawnNumber(drawnNum, letter, [...drawnNumbers]);
+        }
+
+        // Apply drawn number UI update across all roles (Admin, Player, Spectator)
+        function applyDrawnNumber(drawnNum, letter, drawnList) {
+            drawnNumbers = drawnList;
+
+            playSound('draw');
 
             const ballElem = document.getElementById('current-ball');
             ballElem.classList.remove('caller-ball');
@@ -638,7 +688,7 @@
             tag.innerText = `${letter}-${drawnNum}`;
             historyContainer.prepend(tag);
 
-            logMessage(`Mesin mengeluarkan <strong>${letter}-${drawnNum}</strong>`, 'text-indigo-300');
+            logMessage(`Nomor diputar: <strong>${letter}-${drawnNum}</strong>`, 'text-indigo-300');
             speakDrawnNumber(letter, drawnNum);
         }
 
@@ -702,6 +752,7 @@
             }
             if (r === 2 && c === 2) return;
 
+            // Verification: Only numbers already drawn by Admin can be marked
             if (!drawnNumbers.includes(num)) {
                 playSound('click');
                 return;
@@ -716,6 +767,13 @@
         function changeWinMode(mode) {
             selectedWinMode = mode;
             logMessage(`Mode kemenangan diubah ke: <strong>${getWinModeLabel(mode)}</strong>`, 'text-amber-300');
+            
+            // Broadcast mode change to players
+            bingoChannel.postMessage({
+                type: 'CHANGE_WIN_MODE',
+                winMode: mode
+            });
+
             checkBingoProgress();
         }
 
@@ -830,6 +888,9 @@
         }
 
         function resetGame() {
+            if (currentUser && currentUser.role === 'admin') {
+                bingoChannel.postMessage({ type: 'RESET_GAME' });
+            }
             initGame();
         }
     </script>
