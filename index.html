@@ -230,17 +230,32 @@
 
                     <!-- Tombol Kontrol Admin -->
                     <div id="admin-controls" class="w-full flex flex-col gap-3 mt-4 hidden">
+                        
+                        <!-- Pilihan Mode Permainan -->
                         <div class="flex items-center justify-between bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300">
                             <span class="flex items-center gap-1.5 font-semibold text-slate-300">
-                                <i class="fa-solid fa-trophy text-amber-400"></i> Ubah Mode:
+                                <i class="fa-solid fa-trophy text-amber-400"></i> Mode Menang:
                             </span>
                             <select id="win-mode-select" onchange="changeWinMode(this.value)" class="bg-slate-900 text-amber-300 font-semibold border border-slate-700 rounded-lg px-2 py-1 focus:outline-none cursor-pointer">
                                 <option value="5lines">5 Garis (B-I-N-G-O)</option>
                                 <option value="1line">1 Garis Bebas</option>
+                                <option value="horiz_or_vert">Horizontal / Vertikal</option>
                                 <option value="vert_horiz">Vertikal + Horizontal</option>
                                 <option value="vertical">1 Garis Vertikal</option>
                                 <option value="horizontal">1 Garis Horizontal</option>
                                 <option value="fullhouse">Full House (Semua)</option>
+                            </select>
+                        </div>
+
+                        <!-- Pilihan Mode Suara -->
+                        <div class="flex items-center justify-between bg-slate-800/90 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-300">
+                            <span class="flex items-center gap-1.5 font-semibold text-slate-300">
+                                <i class="fa-solid fa-microphone-lines text-pink-400"></i> Jenis Suara:
+                            </span>
+                            <select id="voice-mode-select" onchange="changeVoiceMode(this.value)" class="bg-slate-900 text-pink-300 font-semibold border border-slate-700 rounded-lg px-2 py-1 focus:outline-none cursor-pointer">
+                                <option value="default">Suara Default (B-1)</option>
+                                <option value="unik">Suara Unik (JSON)</option>
+                                <option value="angka">Suara Angka (1)</option>
                             </select>
                         </div>
 
@@ -338,7 +353,8 @@
         const JSON_URLS = {
             admin: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingoadmin.json',
             pemain: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingopemain.json',
-            penonton: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingopenonton.json'
+            penonton: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/bingopenonton.json',
+            suaraUnik: 'https://raw.githubusercontent.com/aldan113/KUMPULAN-JSON/refs/heads/main/suara-unik.json'
         };
 
         let currentUser = null;
@@ -349,6 +365,8 @@
         let soundEnabled = true;
         let autoDrawInterval = null;
         let selectedWinMode = '5lines';
+        let selectedVoiceMode = 'default';
+        let customVoicesMap = {};
         let gameStatus = 'lobby';
         let currentWinner = null;
         let popupDismissed = false;
@@ -356,18 +374,31 @@
         const WIN_MODE_LABELS = {
             '5lines': '5 Garis (B-I-N-G-O)',
             '1line': '1 Garis Bebas',
+            'horiz_or_vert': 'Horizontal / Vertikal',
             'vert_horiz': 'Vertikal + Horizontal',
             'vertical': '1 Garis Vertikal',
             'horizontal': '1 Garis Horizontal',
             'fullhouse': 'Full House (Semua)'
         };
 
+        // Memuat data suara unik dari GitHub
+        async function loadCustomVoices() {
+            try {
+                const response = await fetch(JSON_URLS.suaraUnik);
+                if (!response.ok) return;
+                const data = await response.json();
+                customVoicesMap = data.voices || data || {};
+            } catch (e) {
+                console.warn("Gagal memuat suara-unik.json:", e);
+            }
+        }
+        loadCustomVoices();
+
         async function fetchUserData(url) {
             try {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error("Gagal ambil JSON");
                 const data = await response.json();
-                
                 let list = Array.isArray(data) ? data : (data.codes || data.users || [data]);
                 return list.map(item => {
                     let val = typeof item === 'string' ? item : (item.code || item.accessCode || item.password || '');
@@ -412,12 +443,12 @@
                             return;
                         }
 
-                        // Cek apakah nama sudah digunakan di room aktif
                         const snap = await getDoc(roomRef);
                         if (snap.exists()) {
                             const data = snap.data();
                             const players = Array.isArray(data.players) ? data.players : [];
-                            if (players.some(p => p.toLowerCase() === userInput.toLowerCase())) {
+                            const nameTaken = players.some(p => p.toLowerCase() === userInput.toLowerCase());
+                            if (nameTaken) {
                                 errorElem.textContent = 'Nama pengguna sudah digunakan, ganti nama pengguna lain';
                                 return;
                             }
@@ -504,20 +535,17 @@
                 await setDoc(roomRef, {
                     status: 'lobby',
                     players: user.role === 'player' ? [displayName] : [],
+                    kickedPlayers: [],
                     drawnNumbers: [],
                     currentNumber: null,
                     winMode: '5lines',
+                    voiceMode: 'default',
                     winner: null
                 });
             } else {
                 const data = snap.data();
-                let currentPlayers = Array.isArray(data.players) ? data.players : [];
-                if (user.role === 'player') {
-                    if (currentPlayers.some(p => p.toLowerCase() === displayName.toLowerCase())) {
-                        alert("Nama pengguna sudah digunakan, silakan gunakan nama lain!");
-                        logout();
-                        return;
-                    }
+                const currentPlayers = Array.isArray(data.players) ? data.players : [];
+                if (user.role === 'player' && !currentPlayers.includes(displayName)) {
                     currentPlayers.push(displayName);
                     await updateDoc(roomRef, { players: currentPlayers });
                 }
@@ -532,35 +560,31 @@
                 if (!docSnap.exists()) return;
                 const data = docSnap.data();
 
+                if (currentUser && currentUser.role === 'player') {
+                    const kickedList = Array.isArray(data.kickedPlayers) ? data.kickedPlayers : [];
+                    if (kickedList.includes(currentUser.displayName)) {
+                        alert("Anda telah dikeluarkan oleh Admin dari sesi permainan.");
+                        logout();
+                        return;
+                    }
+                }
+
                 const prevStatus = gameStatus;
                 gameStatus = data.status || 'lobby';
                 const players = Array.isArray(data.players) ? data.players : [];
                 drawnNumbers = Array.isArray(data.drawnNumbers) ? data.drawnNumbers : [];
                 const currNum = data.currentNumber;
                 selectedWinMode = data.winMode || '5lines';
+                selectedVoiceMode = data.voiceMode || 'default';
                 const prevWinner = currentWinner;
                 currentWinner = data.winner || null;
-
-                // Jika pemain sedang bermain namun dikeluarkan oleh Admin dari lobby/room
-                if (currentUser && currentUser.role === 'player') {
-                    const displayName = currentUser.displayName || currentUser.username;
-                    if (!players.includes(displayName) && gameStatus === 'lobby') {
-                        alert("Anda telah dikeluarkan oleh Admin dari ruang tunggu.");
-                        logout();
-                        return;
-                    }
-                }
-
-                // Jika permainan berakhir / ada pemenang, pemain otomatis dikembalikan ke halaman login
-                if (currentWinner && currentUser && currentUser.role === 'player') {
-                    alert(`Permainan Selesai! Pemenang sesi ini adalah: ${currentWinner}. Anda dikembalikan ke halaman login.`);
-                    logout();
-                    return;
-                }
 
                 document.getElementById('active-mode-badge').textContent = `Mode Menang: ${WIN_MODE_LABELS[selectedWinMode] || selectedWinMode}`;
                 const modeSelect = document.getElementById('win-mode-select');
                 if (modeSelect) modeSelect.value = selectedWinMode;
+
+                const voiceSelect = document.getElementById('voice-mode-select');
+                if (voiceSelect) voiceSelect.value = selectedVoiceMode;
 
                 if (gameStatus === 'lobby') {
                     stopAutoDraw();
@@ -576,12 +600,13 @@
                     if (players.length === 0) {
                         listEl.innerHTML = '<div class="text-slate-500 text-center italic mt-14">Menunggu pemain masuk ke lobby...</div>';
                     } else {
+                        const isAdmin = currentUser && currentUser.role === 'admin';
                         listEl.innerHTML = players.map(p => `
                             <div class="bg-slate-900/90 border border-slate-700/80 px-3 py-2 rounded-xl flex justify-between items-center">
                                 <span class="font-semibold text-slate-100"><i class="fa-solid fa-user-check text-emerald-400 mr-2"></i>${p}</span>
                                 <div class="flex items-center gap-2">
                                     <span class="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full font-bold">SIAP</span>
-                                    ${currentUser && currentUser.role === 'admin' ? `<button onclick="kickPlayer('${p}')" class="w-6 h-6 bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white rounded-lg flex items-center justify-center text-xs transition" title="Keluarkan Pemain"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                                    ${isAdmin ? `<button onclick="kickPlayer('${p}')" class="w-6 h-6 bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white rounded-lg flex items-center justify-center text-xs transition" title="Keluarkan Pemain"><i class="fa-solid fa-xmark"></i></button>` : ''}
                                 </div>
                             </div>
                         `).join('');
@@ -641,14 +666,19 @@
             });
         }
 
-        // Fitur Admin mengeluarkan pemain dari lobby
         window.kickPlayer = async function(playerName) {
+            if (!confirm(`Apakah Anda yakin ingin mengeluarkan pemain "${playerName}"?`)) return;
             const snap = await getDoc(roomRef);
             if (!snap.exists()) return;
             const data = snap.data();
-            let players = Array.isArray(data.players) ? data.players : [];
-            players = players.filter(p => p !== playerName);
-            await updateDoc(roomRef, { players: players });
+            const players = (data.players || []).filter(p => p !== playerName);
+            const kicked = Array.isArray(data.kickedPlayers) ? data.kickedPlayers : [];
+            kicked.push(playerName);
+
+            await updateDoc(roomRef, {
+                players: players,
+                kickedPlayers: kicked
+            });
         };
 
         window.closeWinnerPopup = function() {
@@ -667,18 +697,14 @@
 
         window.resetToLobby = async function() {
             stopAutoDraw();
-            const snap = await getDoc(roomRef);
-            let currentPlayers = [];
-            if (snap.exists()) {
-                const data = snap.data();
-                currentPlayers = Array.isArray(data.players) ? data.players : [];
-            }
             await setDoc(roomRef, {
                 status: 'lobby',
-                players: currentPlayers,
+                players: [],
+                kickedPlayers: [],
                 drawnNumbers: [],
                 currentNumber: null,
                 winMode: selectedWinMode,
+                voiceMode: selectedVoiceMode,
                 winner: null
             });
         };
@@ -686,6 +712,14 @@
         window.changeWinMode = async function(newMode) {
             selectedWinMode = newMode;
             await updateDoc(roomRef, { winMode: newMode });
+        };
+
+        window.changeVoiceMode = async function(newVoice) {
+            selectedVoiceMode = newVoice;
+            if (newVoice === 'unik') {
+                await loadCustomVoices();
+            }
+            await updateDoc(roomRef, { voiceMode: newVoice });
         };
 
         window.drawNextNumber = async function() {
@@ -758,7 +792,18 @@
 
             if ('speechSynthesis' in window) {
                 window.speechSynthesis.cancel();
-                const utterance = new SpeechSynthesisUtterance(`${letter}, ${num}`);
+
+                const codeKey = `${letter}-${num}`;
+                let textToSpeak = `${letter}, ${num}`; // Default
+
+                if (selectedVoiceMode === 'angka') {
+                    textToSpeak = `${num}`; // Suara Angka saja
+                } else if (selectedVoiceMode === 'unik') {
+                    // Cek di kamus suara unik JSON (format B-1 atau angka saja)
+                    textToSpeak = customVoicesMap[codeKey] || customVoicesMap[String(num)] || `${letter}, ${num}`;
+                }
+
+                const utterance = new SpeechSynthesisUtterance(textToSpeak);
                 utterance.lang = 'id-ID';
                 utterance.rate = 1.0;
                 window.speechSynthesis.speak(utterance);
@@ -877,6 +922,7 @@
             let isWin = false;
             if (selectedWinMode === '5lines' && totalLines >= 5) isWin = true;
             else if (selectedWinMode === '1line' && totalLines >= 1) isWin = true;
+            else if (selectedWinMode === 'horiz_or_vert' && (horizCount >= 1 || vertCount >= 1)) isWin = true;
             else if (selectedWinMode === 'vert_horiz' && horizCount >= 1 && vertCount >= 1) isWin = true;
             else if (selectedWinMode === 'vertical' && vertCount >= 1) isWin = true;
             else if (selectedWinMode === 'horizontal' && horizCount >= 1) isWin = true;
@@ -902,18 +948,7 @@
             }
         };
 
-        window.logout = async function() {
-            if (currentUser && currentUser.role === 'player') {
-                const displayName = currentUser.displayName || currentUser.username;
-                const snap = await getDoc(roomRef);
-                if (snap.exists()) {
-                    const data = snap.data();
-                    let players = Array.isArray(data.players) ? data.players : [];
-                    players = players.filter(p => p !== displayName);
-                    await updateDoc(roomRef, { players: players });
-                }
-            }
-
+        window.logout = function() {
             const myCode = localStorage.getItem('bingo_my_code');
             if (myCode) {
                 let activeCodes = JSON.parse(localStorage.getItem('bingo_active_codes') || '[]');
