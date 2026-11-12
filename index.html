@@ -211,10 +211,9 @@
         <!-- Main Game Area -->
         <main id="main-content-area" class="max-w-5xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 items-start my-auto">
 
-            <!-- Kiri / Panel Mesin Pengocok Angka (Mode Menang dipindah ke atas) -->
+            <!-- Kiri / Panel Mesin Pengocok Angka -->
             <div id="caller-panel" class="lg:col-span-5 flex flex-col gap-4 mx-auto w-full max-w-md lg:max-w-none">
                 
-                <!-- Tulisan Mode Menang Berada di Atas Mesin Pengocok Angka -->
                 <div id="active-mode-badge" class="w-full text-center py-2 px-4 bg-slate-900/80 border border-slate-700/80 rounded-2xl text-xs text-amber-300 font-bold shadow-md">
                     Mode Menang: 5 Garis (B-I-N-G-O)
                 </div>
@@ -292,7 +291,7 @@
                 </div>
             </div>
 
-            <!-- Kanan / Papan Bingo Pemain (Hanya untuk Pemain, Admin & Penonton disembunyikan) -->
+            <!-- Kanan / Papan Bingo Pemain -->
             <div id="player-board-panel" class="lg:col-span-7 bg-slate-900/60 backdrop-blur-md p-4 md:p-6 rounded-2xl border border-slate-700/50 shadow-xl flex flex-col items-center justify-center">
                 
                 <div class="w-full aspect-square max-w-[440px] flex flex-col gap-2 p-2 bg-slate-950/70 rounded-2xl border border-slate-800 shadow-2xl mb-4">
@@ -306,7 +305,6 @@
                     <div class="grid grid-cols-5 gap-2 md:gap-2.5 flex-1" id="bingo-board-grid"></div>
                 </div>
 
-                <!-- Tulisan Papan Bingo Anda & Tombol Ganti Papan dipindah ke Bawah Papan -->
                 <div class="w-full flex justify-between items-center pt-2 border-t border-slate-700/60">
                     <div class="text-base md:text-lg font-bold text-white flex items-center gap-2">
                         <i class="fa-solid fa-table-cells text-amber-400"></i> Papan Bingo Anda
@@ -388,7 +386,7 @@
             const codeInput = document.getElementById('access-code').value.trim().replace(/\.$/, '');
             const errorElem = document.getElementById('login-error');
 
-            errorElem.textContent = 'Memeriksa kode akses dari server...';
+            errorElem.textContent = 'Memeriksa kredensial dari server...';
             errorElem.classList.remove('hidden');
 
             try {
@@ -412,6 +410,17 @@
                         if (myStoredCode !== codeInput && activeCodes.includes(codeInput)) {
                             errorElem.textContent = 'Kode akses ini sudah digunakan di perangkat atau tab lain!';
                             return;
+                        }
+
+                        // Cek apakah nama sudah digunakan di room aktif
+                        const snap = await getDoc(roomRef);
+                        if (snap.exists()) {
+                            const data = snap.data();
+                            const players = Array.isArray(data.players) ? data.players : [];
+                            if (players.some(p => p.toLowerCase() === userInput.toLowerCase())) {
+                                errorElem.textContent = 'Nama pengguna sudah digunakan, ganti nama pengguna lain';
+                                return;
+                            }
                         }
 
                         if (!activeCodes.includes(codeInput)) {
@@ -469,7 +478,7 @@
             if (user.role === 'admin') {
                 badge.textContent = 'Admin';
                 badge.className = 'px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full text-[10px] font-bold';
-                callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full"; // Admin full tengah tanpa papan
+                callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full";
                 playerBoardPanel.classList.add('hidden');
                 adminControls.classList.remove('hidden');
                 adminLogPanel.classList.remove('hidden');
@@ -477,14 +486,14 @@
             } else if (user.role === 'spectator') {
                 badge.textContent = 'Penonton';
                 badge.className = 'px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-[10px] font-bold';
-                callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full"; // Penonton full tengah tanpa papan
+                callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full";
                 playerBoardPanel.classList.add('hidden');
                 adminControls.classList.add('hidden');
                 adminLogPanel.classList.add('hidden');
             } else {
                 badge.textContent = 'Pemain';
                 badge.className = 'px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-[10px] font-bold';
-                callerPanel.className = "lg:col-span-5 flex flex-col gap-4"; // Pemain berdampingan
+                callerPanel.className = "lg:col-span-5 flex flex-col gap-4";
                 playerBoardPanel.classList.remove('hidden');
                 adminControls.classList.add('hidden');
                 adminLogPanel.classList.add('hidden');
@@ -502,8 +511,13 @@
                 });
             } else {
                 const data = snap.data();
-                const currentPlayers = Array.isArray(data.players) ? data.players : [];
-                if (user.role === 'player' && !currentPlayers.includes(displayName)) {
+                let currentPlayers = Array.isArray(data.players) ? data.players : [];
+                if (user.role === 'player') {
+                    if (currentPlayers.some(p => p.toLowerCase() === displayName.toLowerCase())) {
+                        alert("Nama pengguna sudah digunakan, silakan gunakan nama lain!");
+                        logout();
+                        return;
+                    }
                     currentPlayers.push(displayName);
                     await updateDoc(roomRef, { players: currentPlayers });
                 }
@@ -527,6 +541,23 @@
                 const prevWinner = currentWinner;
                 currentWinner = data.winner || null;
 
+                // Jika pemain sedang bermain namun dikeluarkan oleh Admin dari lobby/room
+                if (currentUser && currentUser.role === 'player') {
+                    const displayName = currentUser.displayName || currentUser.username;
+                    if (!players.includes(displayName) && gameStatus === 'lobby') {
+                        alert("Anda telah dikeluarkan oleh Admin dari ruang tunggu.");
+                        logout();
+                        return;
+                    }
+                }
+
+                // Jika permainan berakhir / ada pemenang, pemain otomatis dikembalikan ke halaman login
+                if (currentWinner && currentUser && currentUser.role === 'player') {
+                    alert(`Permainan Selesai! Pemenang sesi ini adalah: ${currentWinner}. Anda dikembalikan ke halaman login.`);
+                    logout();
+                    return;
+                }
+
                 document.getElementById('active-mode-badge').textContent = `Mode Menang: ${WIN_MODE_LABELS[selectedWinMode] || selectedWinMode}`;
                 const modeSelect = document.getElementById('win-mode-select');
                 if (modeSelect) modeSelect.value = selectedWinMode;
@@ -548,7 +579,10 @@
                         listEl.innerHTML = players.map(p => `
                             <div class="bg-slate-900/90 border border-slate-700/80 px-3 py-2 rounded-xl flex justify-between items-center">
                                 <span class="font-semibold text-slate-100"><i class="fa-solid fa-user-check text-emerald-400 mr-2"></i>${p}</span>
-                                <span class="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full font-bold">SIAP</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] px-2 py-0.5 bg-emerald-500/20 text-emerald-300 rounded-full font-bold">SIAP</span>
+                                    ${currentUser && currentUser.role === 'admin' ? `<button onclick="kickPlayer('${p}')" class="w-6 h-6 bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white rounded-lg flex items-center justify-center text-xs transition" title="Keluarkan Pemain"><i class="fa-solid fa-xmark"></i></button>` : ''}
+                                </div>
                             </div>
                         `).join('');
                     }
@@ -607,6 +641,16 @@
             });
         }
 
+        // Fitur Admin mengeluarkan pemain dari lobby
+        window.kickPlayer = async function(playerName) {
+            const snap = await getDoc(roomRef);
+            if (!snap.exists()) return;
+            const data = snap.data();
+            let players = Array.isArray(data.players) ? data.players : [];
+            players = players.filter(p => p !== playerName);
+            await updateDoc(roomRef, { players: players });
+        };
+
         window.closeWinnerPopup = function() {
             popupDismissed = true;
             document.getElementById('winner-popup-overlay').classList.add('hidden');
@@ -623,9 +667,15 @@
 
         window.resetToLobby = async function() {
             stopAutoDraw();
+            const snap = await getDoc(roomRef);
+            let currentPlayers = [];
+            if (snap.exists()) {
+                const data = snap.data();
+                currentPlayers = Array.isArray(data.players) ? data.players : [];
+            }
             await setDoc(roomRef, {
                 status: 'lobby',
-                players: [],
+                players: currentPlayers,
                 drawnNumbers: [],
                 currentNumber: null,
                 winMode: selectedWinMode,
@@ -852,7 +902,18 @@
             }
         };
 
-        window.logout = function() {
+        window.logout = async function() {
+            if (currentUser && currentUser.role === 'player') {
+                const displayName = currentUser.displayName || currentUser.username;
+                const snap = await getDoc(roomRef);
+                if (snap.exists()) {
+                    const data = snap.data();
+                    let players = Array.isArray(data.players) ? data.players : [];
+                    players = players.filter(p => p !== displayName);
+                    await updateDoc(roomRef, { players: players });
+                }
+            }
+
             const myCode = localStorage.getItem('bingo_my_code');
             if (myCode) {
                 let activeCodes = JSON.parse(localStorage.getItem('bingo_active_codes') || '[]');
