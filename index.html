@@ -20,25 +20,15 @@
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             user-select: none;
         }
-        .bingo-cell:hover:not(.marked) {
-            transform: scale(1.05);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-        }
         .bingo-cell.marked {
             background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
             color: white !important;
             box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.3);
-            animation: pulse-marked 0.3s ease-out;
         }
         .bingo-cell.free-space {
             background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%) !important;
             color: white !important;
             font-weight: 900;
-        }
-        @keyframes pulse-marked {
-            0% { transform: scale(0.9); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
         }
         .caller-ball {
             animation: bounce-ball 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -46,6 +36,15 @@
         @keyframes bounce-ball {
             0% { transform: scale(0); opacity: 0; }
             100% { transform: scale(1); opacity: 1; }
+        }
+        /* Hilangkan panah spinner input number */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
         }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 4px; }
@@ -61,7 +60,7 @@
                 <i class="fa-solid fa-bullseye"></i>
             </div>
             <h1 class="text-2xl font-black bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-                BINGO AldNbr
+                BINGO KLASIK 75
             </h1>
             <p class="text-xs text-slate-400 mt-1">Masukkan nama dan kode akses sesuai peran Anda</p>
         </div>
@@ -71,7 +70,7 @@
                 <label class="block text-xs font-semibold text-slate-300 mb-1.5" for="username">
                     <i class="fa-solid fa-user text-amber-400 mr-1"></i> Nama / Tampilan Anda
                 </label>
-                <input type="text" id="username" placeholder="Masukkan Nama Anda" required
+                <input type="text" id="username" placeholder="Contoh: Budi Santoso" required
                     class="w-full bg-slate-800/90 border border-slate-700 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none transition">
             </div>
 
@@ -81,7 +80,7 @@
                 </label>
                 <select id="role-select" class="w-full bg-slate-800/90 border border-slate-700 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 focus:outline-none transition">
                     <option value="player">Pemain</option>
-                    <option value="admin">Admin / Bandar</option>
+                    <option value="admin">Admin / Pemutar</option>
                     <option value="spectator">Penonton</option>
                 </select>
             </div>
@@ -161,7 +160,7 @@
                 </div>
                 <div>
                     <h1 class="text-2xl md:text-3xl font-bold bg-gradient-to-r from-amber-400 via-pink-400 to-indigo-400 bg-clip-text text-transparent">
-                        BINGO AldNbr
+                        BINGO KLASIK 75
                     </h1>
                     <p class="text-xs text-slate-400 flex items-center gap-2">
                         <span>Pengguna: <strong id="logged-user-display" class="text-amber-300">Player</strong></span>
@@ -253,9 +252,9 @@
                                 <i class="fa-solid fa-microphone-lines text-pink-400"></i> Jenis Suara:
                             </span>
                             <select id="voice-mode-select" onchange="changeVoiceMode(this.value)" class="bg-slate-900 text-pink-300 font-semibold border border-slate-700 rounded-lg px-2 py-1 focus:outline-none cursor-pointer">
-                                <option value="default">Suara Default</option>
-                                <option value="unik">Suara Unik</option>
-                                <option value="angka">Suara Angka</option>
+                                <option value="default">Suara Default (B-1)</option>
+                                <option value="unik">Suara Unik (JSON)</option>
+                                <option value="angka">Suara Angka (1)</option>
                             </select>
                         </div>
 
@@ -330,6 +329,50 @@
                 </div>
             </div>
         </main>
+
+        <!-- Pencari 5 Nomor Berjejer Khusus Admin di Paling Akhir Halaman -->
+        <div id="admin-search-panel" class="hidden max-w-xl mx-auto w-full mt-4 bg-slate-900/70 backdrop-blur-md p-4 md:p-5 rounded-2xl border border-slate-700/50 shadow-xl">
+            <h3 class="text-xs uppercase tracking-wider text-slate-400 font-semibold mb-3 flex items-center justify-between">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-magnifying-glass text-amber-400"></i> Pencari Status Nomor</span>
+            </h3>
+            <div class="bg-slate-950/80 p-3 md:p-4 rounded-xl border border-slate-800">
+                <div class="flex items-start gap-2">
+                    <!-- 5 Kotak Berjejer Horizontal -->
+                    <div class="grid grid-cols-5 gap-1.5 flex-1">
+                        <div class="flex flex-col items-center gap-1.5">
+                            <input type="number" id="search-box-0" min="1" max="75" placeholder="-" class="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-lg py-2 text-center text-sm font-bold text-white focus:outline-none">
+                            <div id="search-icon-0" class="h-6 flex items-center justify-center text-base"></div>
+                        </div>
+                        <div class="flex flex-col items-center gap-1.5">
+                            <input type="number" id="search-box-1" min="1" max="75" placeholder="-" class="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-lg py-2 text-center text-sm font-bold text-white focus:outline-none">
+                            <div id="search-icon-1" class="h-6 flex items-center justify-center text-base"></div>
+                        </div>
+                        <div class="flex flex-col items-center gap-1.5">
+                            <input type="number" id="search-box-2" min="1" max="75" placeholder="-" class="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-lg py-2 text-center text-sm font-bold text-white focus:outline-none">
+                            <div id="search-icon-2" class="h-6 flex items-center justify-center text-base"></div>
+                        </div>
+                        <div class="flex flex-col items-center gap-1.5">
+                            <input type="number" id="search-box-3" min="1" max="75" placeholder="-" class="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-lg py-2 text-center text-sm font-bold text-white focus:outline-none">
+                            <div id="search-icon-3" class="h-6 flex items-center justify-center text-base"></div>
+                        </div>
+                        <div class="flex flex-col items-center gap-1.5">
+                            <input type="number" id="search-box-4" min="1" max="75" placeholder="-" class="w-full bg-slate-900 border border-slate-700 focus:border-indigo-500 rounded-lg py-2 text-center text-sm font-bold text-white focus:outline-none">
+                            <div id="search-icon-4" class="h-6 flex items-center justify-center text-base"></div>
+                        </div>
+                    </div>
+
+                    <!-- Tombol Cari & Hapus -->
+                    <div class="flex flex-col gap-1.5 shrink-0">
+                        <button onclick="checkFiveNumbers()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold shadow transition flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-search"></i> Cari
+                        </button>
+                        <button onclick="clearFiveNumbers()" class="px-3 py-2 bg-slate-800 hover:bg-rose-900/50 border border-slate-600 hover:border-rose-500/50 text-slate-300 hover:text-rose-300 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1">
+                            <i class="fa-solid fa-trash-can"></i> Hapus
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- JavaScript Logika & Firebase & JSON Auth -->
@@ -487,6 +530,7 @@
             const badge = document.getElementById('user-role-badge');
             const callerPanel = document.getElementById('caller-panel');
             const playerBoardPanel = document.getElementById('player-board-panel');
+            const adminSearchPanel = document.getElementById('admin-search-panel');
             const adminControls = document.getElementById('admin-controls');
             const adminLogPanel = document.getElementById('admin-log-panel');
             const btnResetLobby = document.getElementById('btn-reset-lobby');
@@ -496,6 +540,7 @@
                 badge.className = 'px-2 py-0.5 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-full text-[10px] font-bold';
                 callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full";
                 playerBoardPanel.classList.add('hidden');
+                adminSearchPanel.classList.remove('hidden');
                 adminControls.classList.remove('hidden');
                 adminLogPanel.classList.remove('hidden');
                 btnResetLobby.classList.remove('hidden');
@@ -504,6 +549,7 @@
                 badge.className = 'px-2 py-0.5 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-[10px] font-bold';
                 callerPanel.className = "lg:col-span-12 flex flex-col gap-4 max-w-xl mx-auto w-full";
                 playerBoardPanel.classList.add('hidden');
+                adminSearchPanel.classList.add('hidden');
                 adminControls.classList.add('hidden');
                 adminLogPanel.classList.add('hidden');
             } else {
@@ -511,6 +557,7 @@
                 badge.className = 'px-2 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded-full text-[10px] font-bold';
                 callerPanel.className = "lg:col-span-5 flex flex-col gap-4";
                 playerBoardPanel.classList.remove('hidden');
+                adminSearchPanel.classList.add('hidden');
                 adminControls.classList.add('hidden');
                 adminLogPanel.classList.add('hidden');
             }
@@ -539,6 +586,39 @@
             initBoard();
             listenToFirebase();
         }
+
+        // Fungsi Cek 5 Nomor Sekaligus di Kotak Pencari Admin
+        window.checkFiveNumbers = function() {
+            for (let i = 0; i < 5; i++) {
+                const inputEl = document.getElementById(`search-box-${i}`);
+                const iconEl = document.getElementById(`search-icon-${i}`);
+                const valStr = inputEl.value.trim();
+
+                if (valStr === '') {
+                    iconEl.innerHTML = '';
+                    continue;
+                }
+
+                const num = parseInt(valStr, 10);
+                if (drawnNumbers.includes(num)) {
+                    // Centang hijau
+                    iconEl.innerHTML = '<span class="inline-flex items-center justify-center w-6 h-6 bg-emerald-500 text-white rounded text-xs shadow"><i class="fa-solid fa-check font-black"></i></span>';
+                } else {
+                    // Silang merah
+                    iconEl.innerHTML = '<i class="fa-solid fa-xmark text-rose-500 text-xl font-black"></i>';
+                }
+            }
+        };
+
+        // Fungsi Hapus / Clear 5 Kotak Pencari Nomor
+        window.clearFiveNumbers = function() {
+            for (let i = 0; i < 5; i++) {
+                const inputEl = document.getElementById(`search-box-${i}`);
+                const iconEl = document.getElementById(`search-icon-${i}`);
+                if (inputEl) inputEl.value = '';
+                if (iconEl) iconEl.innerHTML = '';
+            }
+        };
 
         function listenToFirebase() {
             onSnapshot(roomRef, (docSnap) => {
@@ -580,7 +660,6 @@
                     document.getElementById('game-wrapper').classList.remove('flex');
                     document.getElementById('winner-popup-overlay').classList.add('hidden');
 
-                    // Jika pemain masuk kembali ke lobby dari game, pastikan namanya terdaftar kembali di list pemain lobby
                     if (currentUser && currentUser.role === 'player' && !players.includes(currentUser.displayName)) {
                         players.push(currentUser.displayName);
                         updateDoc(roomRef, { players: players });
@@ -688,12 +767,13 @@
 
         window.resetToLobby = async function() {
             stopAutoDraw();
+            clearFiveNumbers(); // Otomatis mengosongkan kotak pencari nomor saat reset/loby
             const snap = await getDoc(roomRef);
             let activePlayers = snap.exists() ? (snap.data().players || []) : [];
 
             await setDoc(roomRef, {
                 status: 'lobby',
-                players: activePlayers, // Pemain yang sebelumnya bermain dipertahankan di lobby
+                players: activePlayers,
                 kickedPlayers: [],
                 drawnNumbers: [],
                 currentNumber: null,
